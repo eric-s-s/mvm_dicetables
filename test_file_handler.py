@@ -14,10 +14,8 @@ def create_plot_object(table):
     new_object['text'] = str(table).replace('\n', ' \\ ')
     graph_pts = dt.graph_pts(table, axes=False)
     y_vals = [pts[1] for pts in graph_pts]
-
-    new_object['x_min'], new_object['x_max'] = table.values_range()
-    new_object['y_min'] = min(y_vals)
-    new_object['y_max'] = max(y_vals)
+    new_object['x_range'] = table.values_range()
+    new_object['y_range'] = (min(y_vals), max(y_vals))
     new_object['pts'] = graph_pts
     new_object['tuple_list'] = table.frequency_all()
     new_object['dice'] = table.get_list()
@@ -47,6 +45,14 @@ class Testfh(unittest.TestCase):
         obj = create_plot_object(table)
         obj['pts'] = 'a'
         self.assertEqual(fh.check_data(obj), "error: pts not <type 'list'>")
+    def test_check_data_incorrect_x_range(self):
+        obj = create_plot_object(dt.DiceTable())
+        obj['x_range'] = (1.0, 2)
+        self.assertEqual(fh.check_data(obj), 'error: incorrect x_range')
+    def test_check_data_incorrect_y_range(self):
+        obj = create_plot_object(dt.DiceTable())
+        obj['y_range'] = (1.0, 2)
+        self.assertEqual(fh.check_data(obj), 'error: incorrect y_range')
     def test_check_data_incorrect_freq_in_tuple_list(self):
         obj = create_plot_object(dt.DiceTable())
         obj['tuple_list'] = [(1.0, 2)]

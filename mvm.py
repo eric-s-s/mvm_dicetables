@@ -56,14 +56,12 @@ class TableManager(object):
         new_object = {}
         new_object['text'] = self.request_info('text_one_line')        
         graph_pts = dt.graph_pts(self._table, axes=use_axes, exact=False)        
-        new_object['x_min'], new_object['x_max'] = self._table.values_range()
+        new_object['x_range'] = self._table.values_range()
         if use_axes:
             y_pts = graph_pts[1]
         else:
             y_pts = [pair[1] for pair in graph_pts]
-        new_object['y_min'] = min(y_pts)
-        new_object['y_max'] = max(y_pts)
-        
+        new_object['y_range'] = (min(y_pts), max(y_pts))
         new_object['pts'] = graph_pts
         new_object['tuple_list'] = self.request_info('tuple_list')
         new_object['dice'] = self._table.get_list()
@@ -174,11 +172,11 @@ class GraphBox(object):
         self._table = table_manager
         self.use_axes = use_axes
     def graph_it(self, text_tuple_list_lst):
-        '''gets passed a list of tuples containing 'tuple_list' and txt. 'tuple_list' is the 
-        'tuple_list' key in a plot object or a tuple_list of a table.  returns objects
-        for plotting.  objects are plot_objects.  they are dictionaries.
-        to plot, use key=pts and key=text.  also have key=x_min, x_max, y_min,
-        y_max'''
+        '''gets passed a list of tuples containing 'tuple_list' and txt.
+        'tuple_list' is the 'tuple_list' key in a plot object or a 
+        tuple_list of a table.  returns objects for plotting.
+        objects are plot_objects.  they are dictionaries.
+        to plot, use key=pts and key=text.  also have key=x_range, y_range'''
         plots = []
         for text, tuple_list  in text_tuple_list_lst:
             to_plot = self._history.get_obj(text, tuple_list)
@@ -189,9 +187,10 @@ class GraphBox(object):
             plots.append(to_plot)
         return plots
     def clear_selected(self, text_tuple_list_lst):
-        '''gets passed a list of tuples containing 'tuple_list' and txt. 'tuple_list' is the 
-        'tuple_list' key in a plot object or a tuple_list of a table. clears the 
-        objects from history and writes the history'''
+        '''gets passed a list of tuples containing 'tuple_list' and txt. 
+        'tuple_list' is the 'tuple_list' key in a plot object or a 
+        tuple_list of a table. clears the objects from history and writes
+        the history'''
         remove = []
         for text, tuple_list in text_tuple_list_lst:
             to_rm = self._history.get_obj(text, tuple_list)
@@ -206,7 +205,8 @@ class GraphBox(object):
         '''returns a tuple for a display output.
         (table_manager_text_and_tuple_list, history_manager.get_labels())'''
         current = (self._table.request_info('text_one_line'), 
-                   self._table.request_info(''))
+                   self._table.request_info('tuple_list'))
+        return current, self._history.get_labels()
 
 def GraphPopup(object):
     def __init__(self, plot_lst, color_list, style_list):
@@ -214,12 +214,12 @@ def GraphPopup(object):
         if color_list:
             self.colors = cycle(color_list)
         else:
-            self.colors = cycle([''])
+            self.colors = cycle([('', '')])
         
         if style_list:
             self.styles = cycle(style_list)
         else:
-            self.styles = cycle([''])
+            self.styles = cycle([('', '')])
         
         self.x_range = []
         self.y_range = []
@@ -227,7 +227,9 @@ def GraphPopup(object):
         for obj in plot_lst:
             new_obj = {}
             new_obj['pts'] = obj['pts'][:]
-        
+            new_obj['labl_color'], new_obj['plt_color'] = self.colors.next()
+            new_obj['labl_style'], new_obj['plt_style'] = self.styles.next()
+            
         
 
     
