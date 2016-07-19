@@ -10,18 +10,34 @@ import numpy as np
 import dicetables as dt
 import mvm
 
+class DummyParent(object):
+    def __init__(self):
+        self.add_rm_call = ''
+        self.display_call = False
+    def display_all(self):
+        self.display_call = True
+    def add_rm(self, number, die):
+        if isinstance(number, int) and isinstance(die, dt.ProtoDie):
+            self.add_rm_call = 'add_rm {}{}'.format(number, die)
+
 
 class TestMVM(unittest.TestCase):
     def setUp(self):
         self.TM = mvm.TableManager()
         self.HM = mvm.HistoryManager()
-        self.DM = mvm.DieManager()
         self.GB = mvm.GraphBox(self.TM, self.HM, True)
+        self.CB = mvm.ChangeBox(self.TM)
+        self.SB = mvm.StatBox(self.TM)
+        self.AB = mvm.AddBox(self.TM)
+        self.IB = mvm.InfoBox(self.TM)
     def tearDown(self):
         del self.TM
         del self.HM
-        del self.DM
         del self.GB
+        del self.CB
+        del self.SB
+        del self.AB
+        del self.IB
     def test_table_manager_request_info_range(self):
         self.assertEqual(self.TM.request_info('range'), (0,0))
     def test_table_manager_request_info_mean(self):
@@ -195,7 +211,8 @@ class TestMVM(unittest.TestCase):
         self.HM.add_plot_obj(empty_obj)
         self.HM.write_history()
         history = np.load('numpy_history.npy')
-        self.assertEqual(self.HM.get_labels(), [('', [(0, 1)])])
+        self.assertEqual(history[0], empty_obj)
+        self.assertEqual(history.size, 1)
     def test_history_manager_read_history(self):
         empty_obj = self.TM.request_plot_obj(True)
         self.HM.add_plot_obj(empty_obj)
@@ -204,37 +221,6 @@ class TestMVM(unittest.TestCase):
         msg = to_test.read_history()
         self.assertEqual(msg, 'ok')
         self.assertEqual(self.HM.get_labels(), [('', [(0, 1)])])
-        
-    def test_die_manager_inits_with_d6(self):
-        self.assertEqual(self.DM._die, dt.Die(6))
-    def test_die_manager_get_die(self):
-        self.assertEqual(self.DM.get_die(), dt.Die(6))
-    def test_die_manager_input_die__die_empty_dict(self):
-        self.DM.input_die(3, 0, 0, {})
-        self.assertEqual(self.DM.get_die(), dt.Die(3))
-    def test_die_manager_input_die__die_dict_all_ones(self):
-        self.DM.input_die(3, 0, 0, {1:1, 2:1, 3:1})
-        self.assertEqual(self.DM.get_die(), dt.Die(3))
-    def test_die_manager_input_die__die_dict_all_zeros(self):
-        self.DM.input_die(3, 0, 0, {1:0, 2:0, 3:0})
-        self.assertEqual(self.DM.get_die(), dt.Die(3))
-    def test_die_manager_input_die__moddie(self):
-        self.DM.input_die(3, 1, 0, {1:1, 2:1, 3:1})
-        self.assertEqual(self.DM.get_die(), dt.ModDie(3,1))
-    def test_die_manager_input_die__weighteddie(self):
-        self.DM.input_die(6, 0, 0, {1:1, 2:0, 3:1})
-        self.assertEqual(self.DM.get_die(), dt.WeightedDie({1:1, 2:0, 3:1}))
-    def test_die_manager_input_die__modweighteddie(self):
-        self.DM.input_die(6, 1, 0, {1:1, 2:0, 3:1})
-        self.assertEqual(self.DM.get_die(),
-                         dt.ModWeightedDie({1:1, 2:0, 3:1}, 1))
-    def test_die_manager_input_die__strong_modweighteddie(self):
-        self.DM.input_die(6, 1, 5, {1:1, 2:0, 3:1})
-        self.assertEqual(self.DM.get_die(),
-                         dt.StrongDie(dt.ModWeightedDie({1:1, 2:0, 3:1}, 1), 5))
-    def test_die_manager_input_die__strong_d6(self):
-        self.DM.input_die(7, 0, 5, {1:0, 2:0, 3:0})
-        self.assertEqual(self.DM.get_die(), dt.StrongDie(dt.Die(7), 5))
 
     def test_graph_box_graph_it_returns_empty_list(self):
         self.assertEqual(self.GB.graph_it([]), [])
@@ -307,6 +293,147 @@ class TestMVM(unittest.TestCase):
         expected = (('1D1 \\ 1D2', [(2, 1), (3, 1)]), 
                     [('', [(0, 1)]), ('1D1', [(1, 1)])])
         self.assertEqual(self.GB.display(), expected)
-  
+        
+    def test_graph_box_reload_does_nothing_if_obj_not_in_hist(self):
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.TM.request_add(1, dt.Die(1))
+        current_state = self.TM.request_plot_obj(False)
+        self.GB.reload('abc', [(1,2)])
+        self.assertEqual(self.TM.request_plot_obj(False), current_state)
+    def test_graph_box_reload_works_as_expected(self):
+        empty_obj = self.TM.request_plot_obj(True)
+        self.HM.add_plot_obj(empty_obj)
+        self.TM.request_add(1, dt.Die(1))
+        
+        self.GB.reload('', [(0, 1)])
+        self.assertEqual(self.TM.request_plot_obj(True), empty_obj)
+    
+    def test_get_add_rm_box_display_lt_size6(self):
+        self.assertEqual(
+            mvm.get_add_rm(dt.Die(5), 0, False),
+            ['D5', '+1', '+5', '+10', '+50', '+100', '+500'])
+    def test_get_add_rm_box_display_mid_range_size(self):
+        self.assertEqual(
+            mvm.get_add_rm(dt.Die(50), 0, False),
+            ['D50', '+1', '+5', '+10', '+50'])
+    def test_get_add_rm_box_display_very_large_size(self):
+        self.assertEqual(
+            mvm.get_add_rm(dt.Die(500), 0, False),
+            ['D500', '+1'])
+    def test_get_add_rm_box_display_with_rm(self):
+        self.assertEqual(
+            mvm.get_add_rm(dt.Die(99), 0, True),
+            ['-5', '-1', 'D99', '+1', '+5'])
+    def test_get_add_rm_box_display_with_number_not_zero(self):
+        self.assertEqual(
+            mvm.get_add_rm(dt.Die(99), 5, True),
+            ['-5', '-1', '5D99', '+1', '+5'])
+
+    def test_change_box_display_at_empty_table(self):
+        self.assertEqual(self.CB.display(), [])
+    def test_change_box_display_normal(self):
+        self.TM.request_add(2, dt.Die(100))
+        self.TM.request_add(1, dt.Die(101))
+        expected = [
+            (['-5', '-1', '2D100', '+1', '+5'], dt.Die(100)),
+            (['-1', '1D101', '+1'], dt.Die(101))]
+        self.assertEqual(self.CB.display(), expected)
+    def test_change_box_add_rm_at_zero(self):
+        self.CB.add_rm(0, dt.Die(5))
+        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
+        self.assertEqual(self.TM.request_info('dice_list'), [])
+    def test_change_box_add_rm_pos_number(self):
+        self.CB.add_rm(2, dt.Die(1))
+        self.assertEqual(self.TM.request_info('tuple_list'), [(2, 1)])
+        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(1), 2)])
+    def test_change_box_add_rm_neg_number(self):
+        self.CB.add_rm(2, dt.Die(1))
+        self.CB.add_rm(-1, dt.Die(1))
+        self.assertEqual(self.TM.request_info('tuple_list'), [(1, 1)])
+        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(1), 1)])        
+    def test_change_box_reset(self):
+        self.CB.add_rm(1, dt.Die(2))
+        self.CB.reset()
+        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
+        self.assertEqual(self.TM.request_info('dice_list'), [])
+
+
+    def test_make_die_input_die__die_empty_dict(self):
+        self.assertEqual(mvm.make_die(3, 0, 0, {}), dt.Die(3))
+    def test_make_die_input_die__die_dict_all_ones(self):
+        self.assertEqual(mvm.make_die(3, 0, 1, {1:1, 2:1, 3:1}), dt.Die(3))
+    def test_make_die_input_die__die_dict_all_zeros(self):
+        self.assertEqual(mvm.make_die(3, 0, 1, {1:0, 2:0, 3:0}), dt.Die(3))
+    def test_make_die_input_die__moddie(self):
+        self.assertEqual(mvm.make_die(3, 1, 0, {1:1, 2:1, 3:1}),
+                         dt.ModDie(3, 1))
+    def test_make_die_input_die__weighteddie(self):
+        self.assertEqual(mvm.make_die(6, 0, 0, {1:1, 2:0, 3:1}),
+                         dt.WeightedDie({1:1, 2:0, 3:1}))
+    def test_make_die_input_die__modweighteddie(self):
+        self.assertEqual(mvm.make_die(6, 1, 0, {1:1, 2:0, 3:1}),
+                         dt.ModWeightedDie({1:1, 2:0, 3:1}, 1))
+    def test_make_die_input_die__strong_modweighteddie(self):
+        self.assertEqual(mvm.make_die(6, 1, 5, {1:1, 2:0, 3:1}),
+                         dt.StrongDie(dt.ModWeightedDie({1:1, 2:0, 3:1}, 1), 5))
+    def test_make_die_input_die__strong_d6(self):
+        self.assertEqual(mvm.make_die(7, 0, 5, {1:0, 2:0, 3:0}), 
+                         dt.StrongDie(dt.Die(7), 5))    
+    def test_add_box_inits_with_die_and_presets(self):
+        self.assertEqual(self.AB.presets,
+                         ['D2', 'D4', 'D6', 'D8', 'D10', 'D12', 'D20', 'D100'])
+        self.assertEqual(self.AB._die, dt.Die(6))
+    def test_add_box_display_die(self):
+        self.assertEqual(self.AB.display_die(), 
+                         ['D6', '+1', '+5', '+10', '+50', '+100', '+500'])
+    def test_add_box_display_current(self):
+        self.TM.request_add(1, dt.Die(2))
+        self.TM.request_add(2, dt.Die(1))
+        self.assertEqual(self.AB.display_current(), '2D1 \\ 1D2')
+    def test_add_box_add(self):
+        self.AB._die = dt.Die(2)
+        self.AB.add(2)
+        self.assertEqual(self.TM.request_info('tuple_list'),
+                         [(2, 1), (3, 2), (4, 1)])
+        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(2), 2)])
+    def test_add_box_set_size_resets_dictionary(self):
+        self.AB._dictionary = {1:2}
+        self.AB.set_size(5)
+        self.assertEqual(self.AB._dictionary, {})
+    def test_add_box_set_size_works(self):
+        self.AB.set_size(10)
+        self.assertEqual(self.AB._die, dt.Die(10))
+    def test_add_box_set_size_doesnot_affect_mod_or_multiplier(self):
+        self.AB._mod = 100
+        self.AB._multiplier = 50
+        self.AB.set_size(2)
+        self.assertEqual(self.AB._mod, 100)
+        self.assertEqual(self.AB._multiplier, 50)
+        self.assertEqual(self.AB._die, dt.StrongDie(dt.ModDie(2, 100), 50))
+    def test_add_box_set_mod_changes_mod_and_gets_new_die(self):
+        self.AB._dictionary = {1: 1, 2: 2}
+        self.AB.set_mod(5)
+        self.assertEqual(self.AB._die, dt.ModWeightedDie({1: 1, 2: 2}, 5))
+    def test_add_box_multiplier_sets_new_multiplier_and_gets_new_die(self):
+        self.AB.set_multiplier(10)
+        self.assertEqual(self.AB._die, dt.StrongDie(dt.Die(6), 10))
+    def test_add_box_get_weights_text_works(self):
+        self.assertEqual(self.AB.get_weights_text(),
+                         ['weight for 1', 'weight for 2', 'weight for 3',
+                          'weight for 4', 'weight for 5', 'weight for 6'])
+    def test_add_box_record_weights_empty_list(self):
+        self.AB.record_weights_text([])
+        self.assertEqual(self.AB._dictionary, {})
+    def test_add_box_record_weights_updates_die(self):
+        self.AB._size = 10
+        self.AB.record_weights_text([])
+        self.assertEqual(self.AB._die, dt.Die(10)) 
+    def test_add_box_record_weights_works_as_expected(self):
+        self.AB.record_weights_text([('weight for 1', 3), ('weight for 2', 1)])
+        self.assertEqual(self.AB._die, dt.WeightedDie({1: 3, 2: 1}))
+
+
+
+
 if __name__ == '__main__':
     unittest.main()
