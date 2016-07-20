@@ -316,22 +316,22 @@ class StatBox(object):
         for displaying updates when info changes.'''
         val_min, val_max = self._table.request_info('range')
         mean = self._table.request_info('mean')
-        stddev =self._table.request_info('stddev')
+        stddev = self._table.request_info('stddev')
         info_text = (
             'the range of numbers is {:,}-{:,}\n'.format(val_min, val_max) +
             'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
-             )
+            )
         stat_text, values = self.display_stats(val_1, val_2)
         return [info_text, stat_text, values]
     def display_stats(self, val_1, val_2):
-        '''val_1 and val_2 are ints. returns a list 
+        '''val_1 and val_2 are ints. returns a list
         [text showing stats for all rolls between and including vals,
          (new_val_1, new_val_2)]'''
         val_min, val_max = self._table.request_info('range')
-        
+
         val_1 = min(val_max, max(val_min, val_1))
         val_2 = min(val_max, max(val_min, val_2))
-        
+
         stat_list = range(min(val_1, val_2), max(val_1, val_2) + 1)
         stat_info = self._table.request_stats(stat_list)
         stat_text = ('\n    {stat[0]} occurred {stat[1]} times\n'+
@@ -340,18 +340,86 @@ class StatBox(object):
                      '    or {stat[4]} percent')
         return [stat_text.format(stat=stat_info), (val_1, val_2)]
 
-    
 class InfoBox(object):
     '''displays long info about object. can also display long info as page
     views.'''
     def __init__(self, table_manager):
         '''simply inits with a TableManager'''
         self._table = table_manager
+        self._current_page = {'full_text': 1, 'weights_info': 1}
+    def _parse_info(self, key):
+        '''key = 'weights_info' or 'full_text'. preps text. returns new text'''
+        text = self._table.request_info(key).rstrip('\n')
+        if key == 'weights_info':
+            text = text.replace('a roll of ', '')
+            text = text.replace(' a ', ' ')
+            text = text.replace(' of ', ': ')
+        return text
+    def display_current_page(self, key, lines_per_page):
+        '''key is 'weights_info' or 'full_text'.  page is int of page_number,
+        lines_per_page is int > 1.  if page is outside of total_page, loops
+        using modulo.  returns (text, current_page, total_pages)'''
+        text = self._parse_info(key)
+        lines = text.split('\n')
+        page_num = self._current_page[key]
+        total_pages, remainder = divmod(len(lines), lines_per_page)
+        total_pages += bool(remainder)
+        #last page is special case, indicated by page = 0
+        page_num = page_num % total_pages
+        if page_num != 0:
+            end = page_num * lines_per_page
+            start = end - lines_per_page
+            page = '\n'.join(lines[start:end])
+        else:
+            start = (total_pages - 1) * lines_per_page
+            last_lines = lines[start:]
+            last_lines += (lines_per_page - len(last_lines)) * [' ']
+            page = '\n'.join(last_lines)
+            page_num = total_pages
+        self._current_page[key] = page_num
+        return (page, page_num, total_pages)
+    def display_next_page(self, key, lines_per_page):
+        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        updates current_page += 1. loops from last to first page.
+        returns new self.display_current_page.'''
+        self._current_page[key] += 1
+        return self.display_current_page(key, lines_per_page)
+    def display_previous_page(self, key, lines_per_page):
+        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        updates current_page += 1. loops from first to last page.
+        returns new self.display_current_page.'''
+        self._current_page[key] -= 1
+        return self.display_current_page(key, lines_per_page)
+    def display_chosen_page(self, page_number, key, lines_per_page):
+        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        self._current_page[key] = page_number
+        return self.display_current_page(key, lines_per_page)'''
+        self._current_page[key] = page_number
+        return self.display_current_page(key, lines_per_page)
 
-
-
-
-
+    def _general_info(self):
+        '''returns a string of some general info'''
+        vals_min, vals_max = self._table.request_info('range')
+        mean = self._table.request_info('mean')
+        stddev = self._table.request_info('stddev')
+        text = (
+            'the range of numbers is {:,}-{:,}\n'.format(vals_min, vals_max) +
+            'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
+            )
+        return text
+    def display_paged(self, weights_lines, full_text_lines):
+        '''weights_lines and full_text_lines are ints > 1 = lines_per_page
+        for weights_info and full_text
+        returns [general_info, table_str, (weights_info), (full_text)]'''
+        return [self._general_info(), self._table.request_info('text'),
+                self.display_current_page('weights_info', weights_lines),
+                self.display_current_page('full_text', full_text_lines)]
+    def display(self):
+        '''returns [general_info, table_str, weights_info, full_text].
+        here weights_info and full_text are not page_views.  this is for a
+        scrolling display.'''
+        return [self._general_info(), self._table.request_info('text'),
+                self._parse_info('weights_info'), self._parse_info('full_text')]
 
 
 
@@ -387,10 +455,5 @@ class GraphPopup(object):
         self.legend_bindings.append((text, plot_line))
     def make_legend(self):
         pass
-
-
-
-
-
 
 

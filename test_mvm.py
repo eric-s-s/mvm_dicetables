@@ -12,13 +12,15 @@ import mvm
 
 class DummyParent(object):
     def __init__(self):
-        self.add_rm_call = ''
-        self.display_call = False
-    def display_all(self):
-        self.display_call = True
-    def add_rm(self, number, die):
-        if isinstance(number, int) and isinstance(die, dt.ProtoDie):
-            self.add_rm_call = 'add_rm {}{}'.format(number, die)
+        self.dictionary = {
+            'weights_info': '1D1  W: 3\n    a roll of 1 has a weight of 3',
+            'full_text': '\n'.join([str(num) for num in range(10)]), 
+            'mean': 12345.6,
+            'stddev': 12.34,
+            'range': (10, 1000), 
+            'text': 'text'}
+    def request_info(self, key):
+        return self.dictionary[key]
 
 
 class TestMVM(unittest.TestCase):
@@ -29,7 +31,7 @@ class TestMVM(unittest.TestCase):
         self.CB = mvm.ChangeBox(self.TM)
         self.SB = mvm.StatBox(self.TM)
         self.AB = mvm.AddBox(self.TM)
-        self.IB = mvm.InfoBox(self.TM)
+        self.IB = mvm.InfoBox(DummyParent())
     def tearDown(self):
         del self.TM
         del self.HM
@@ -432,6 +434,135 @@ class TestMVM(unittest.TestCase):
         self.AB.record_weights_text([('weight for 1', 3), ('weight for 2', 1)])
         self.assertEqual(self.AB._die, dt.WeightedDie({1: 3, 2: 1}))
 
+    def test_stat_box_display_stats_val_lt_min_range(self):
+        self.TM.request_add(2, dt.Die(2))
+        stat_text = ('\n    2-4 occurred 4 times\n'+
+                     '    out of 4 total combinations\n\n'+
+                     '    that\'s a one in 1.000 chance\n'+
+                     '    or 100.0 percent')
+        self.assertEqual(self.SB.display_stats(-1, 4), [stat_text, (2, 4)])  
+    def test_stat_box_display_stats_val_gt_max_range(self):
+        self.TM.request_add(2, dt.Die(2))
+        stat_text = ('\n    2-4 occurred 4 times\n'+
+                     '    out of 4 total combinations\n\n'+
+                     '    that\'s a one in 1.000 chance\n'+
+                     '    or 100.0 percent')
+        self.assertEqual(self.SB.display_stats(8, 2), [stat_text, (4, 2)])
+    def test_stat_box_display_stats_val_1_val_2_equal(self):
+        self.TM.request_add(2, dt.Die(2))
+        stat_text = ('\n    4 occurred 1 times\n'+
+                     '    out of 4 total combinations\n\n'+
+                     '    that\'s a one in 4.000 chance\n'+
+                     '    or 25.00 percent')
+        self.assertEqual(self.SB.display_stats(4, 4), [stat_text, (4, 4)])
+    def test_stat_box_display(self):
+        self.TM.request_add(2, dt.Die(2))
+        stat_text = ('\n    2-4 occurred 4 times\n'+
+                     '    out of 4 total combinations\n\n'+
+                     '    that\'s a one in 1.000 chance\n'+
+                     '    or 100.0 percent')
+        info_text = (
+            'the range of numbers is 2-4\n' +
+            'the mean is 3.0\nthe stddev is 0.7071'
+             )
+        self.assertEqual(self.SB.display(8, 2), [info_text, stat_text, (4, 2)])
+    def test_stat_box_display_formatting(self):
+        self.TM.request_add(1, dt.WeightedDie({1:1000, 10000:1000}))
+        stat_text = ('\n    1,000-10,000 occurred 1,000 times\n'+
+                     '    out of 2,000 total combinations\n\n'+
+                     '    that\'s a one in 2.000 chance\n'+
+                     '    or 50.00 percent')
+        info_text = (
+            'the range of numbers is 1-10,000\n' +
+            'the mean is 5,000.5\nthe stddev is 4999.5'
+             )
+        self.assertEqual(self.SB.display(1000, 10000), 
+                         [info_text, stat_text, (1000, 10000)])
+    def test_stat_box_display_empty_table(self):
+        stat_text = ('\n    0 occurred 1 times\n'+
+                     '    out of 1 total combinations\n\n'+
+                     '    that\'s a one in 1.000 chance\n'+
+                     '    or 100.0 percent')
+        info_text = (
+            'the range of numbers is 0-0\n' +
+            'the mean is 0.0\nthe stddev is 0.0'
+             )
+        self.assertEqual(self.SB.display(1000, 10000), 
+                         [info_text, stat_text, (0, 0)])
+
+    def test_info_box_display_current_page_weights_info_formatting(self):
+        self.assertEqual(self.IB.display_current_page('weights_info', 2),
+                         ('1D1  W: 3\n    1 has weight: 3', 1, 1))
+    def test_info_box_display_current_page_full_text_formatting(self):
+        self.assertEqual(self.IB.display_current_page('full_text', 2),
+                         ('0\n1', 1, 5))
+    def test_info_box_display_current_page_middle_page(self):
+        self.IB._current_page['full_text'] = 2
+        self.assertEqual(self.IB.display_current_page('full_text', 3),
+                         ('3\n4\n5', 2, 4))
+    def test_info_box_display_current_page_last_page_no_fill(self):
+        self.IB._current_page['full_text'] = 2
+        self.assertEqual(self.IB.display_current_page('full_text', 5),
+                         ('5\n6\n7\n8\n9', 2, 2))
+    def test_info_box_display_current_page_last_page_fill(self):
+        self.IB._current_page['full_text'] = 4
+        self.assertEqual(self.IB.display_current_page('full_text', 3),
+                         ('9\n \n ', 4, 4))
+    def test_info_box_display_current_page_page_not_in_range(self):
+        self.IB._current_page['full_text'] = 17
+        self.assertEqual(self.IB.display_current_page('full_text', 3),
+                         ('0\n1\n2', 1, 4))
+    def test_info_box_display_current_page_adjusts_current_page_variable(self):
+        self.IB._current_page['full_text'] = 18
+        self.IB.display_current_page('full_text', 3)
+        self.assertEqual(self.IB._current_page,
+                         {'weights_info': 1, 'full_text': 2})
+    def test_info_box_display_next_page_last_page_goes_to_first_page(self):
+        self.IB._current_page['full_text'] = 4
+        self.assertEqual(self.IB.display_next_page('full_text', 3),
+                         ('0\n1\n2', 1, 4))
+    def test_info_box_display_next_page_normal_case(self):
+        self.assertEqual(self.IB.display_next_page('full_text', 3),
+                         ('3\n4\n5', 2, 4))
+    def test_info_box_display_previous_page_last_page_goes_to_last_page(self):
+        self.assertEqual(self.IB.display_previous_page('full_text', 3),
+                         ('9\n \n ', 4, 4))
+    def test_info_box_display_previous_page_normal_case(self):
+        self.IB._current_page['full_text'] = 3
+        self.assertEqual(self.IB.display_previous_page('full_text', 3),
+                         ('3\n4\n5', 2, 4))
+    def test_info_box_display_chosen_page_works_as_expected(self):
+        self.assertEqual(self.IB.display_chosen_page(2, 'full_text', 3),
+                         ('3\n4\n5', 2, 4))
+    def test_info_box_display_chosen_page_works_out_of_range(self):
+        self.assertEqual(self.IB.display_chosen_page(-2, 'full_text', 3),
+                         ('3\n4\n5', 2, 4))
+    def test_info_box_display_paged_general_info_formatting(self):
+        general_info = ('the range of numbers is 10-1,000\n' +
+                        'the mean is 12,345.6\nthe stddev is 12.34')
+        self.assertEqual(self.IB.display_paged(1, 1)[0], general_info)
+    def test_info_box_display_paged_works_as_expected(self):
+        general_info = ('the range of numbers is 10-1,000\n' +
+                        'the mean is 12,345.6\nthe stddev is 12.34')
+        
+        self.assertEqual(self.IB.display_paged(1, 1),
+                         [general_info, 'text', ('1D1  W: 3', 1, 2),
+                          ('0', 1, 10)])
+    def test_info_box_display_works_as_expected(self):
+        general_info = ('the range of numbers is 10-1,000\n' +
+                        'the mean is 12,345.6\nthe stddev is 12.34')
+        self.assertEqual(self.IB.display(),
+                         [general_info, 'text',
+                          '1D1  W: 3\n    1 has weight: 3',
+                          '0\n1\n2\n3\n4\n5\n6\n7\n8\n9'])
+
+
+#self.dictionary = {
+#            'weights_info': '1D1  W: 3\n    a roll of 1 has a weight of 3',
+#            'full_text': '\n'.join([str(num) for num in range(10)]), 
+#            'mean': 12345.6,
+#            'stddev': 12.34,
+#            'range': (10, 1000)}
 
 
 
