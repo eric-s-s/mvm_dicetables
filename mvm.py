@@ -7,7 +7,6 @@ from decimal import Decimal
 
 import dicetables as dt
 import numpy as np
-import matplotlib.pyplot as plt
 import file_handler as fh
 
 class TableManager(object):
@@ -139,9 +138,11 @@ class GraphBox(object):
             to_plot = self._history.get_obj(text, tuple_list)
             if not to_plot:
                 to_plot = self._table.request_plot_obj(self.use_axes)
-                self._history.add_plot_obj(to_plot)
-                self._history.write_history()
-            plots.append(to_plot)
+                if to_plot['tuple_list'] != [(0, 1)]:
+                    self._history.add_plot_obj(to_plot)
+                    self._history.write_history()
+            if to_plot['tuple_list'] != [(0, 1)] and to_plot not in plots:
+                plots.append(to_plot)
         return plots
     def clear_selected(self, text_tuple_list_lst):
         '''gets passed a list of tuples containing 'tuple_list' and txt.
@@ -262,7 +263,8 @@ class AddBox(object):
         self.presets = ['D{}'.format(die) for die in
                         (2, 4, 6, 8, 10, 12, 20, 100)]
     def display_die(self):
-        '''returns a set of add values and str(die) for the bottom display'''
+        '''returns a set of add values and str(die) for the bottom display
+        [die_sting, '+number' strings]'''
         return get_add_rm(self._die, 0, False)
     def display_current(self):
         '''displays the table info'''
@@ -311,8 +313,8 @@ class StatBox(object):
         self._table = table_manager
     def display(self, val_1, val_2):
         '''val_1 and val_2 are ints passed from the stat sliders.
-        returns a list of info. [info_text, stat_text,
-                                    (new_val_1, new_val_2)]
+        returns a list of info. [info_text, stat_text,(new_val_1, new_val_2)
+                                 (val_min, val_max)]
         for displaying updates when info changes.'''
         val_min, val_max = self._table.request_info('range')
         mean = self._table.request_info('mean')
@@ -322,11 +324,11 @@ class StatBox(object):
             'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
             )
         stat_text, values = self.display_stats(val_1, val_2)
-        return [info_text, stat_text, values]
+        return [info_text, stat_text, values, (val_min, val_max)]
     def display_stats(self, val_1, val_2):
         '''val_1 and val_2 are ints. returns a list
         [text showing stats for all rolls between and including vals,
-         (new_val_1, new_val_2)]'''
+         (new_val_1, new_val_2), (val_min, val_max)]'''
         val_min, val_max = self._table.request_info('range')
 
         val_1 = min(val_max, max(val_min, val_1))

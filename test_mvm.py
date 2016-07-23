@@ -229,7 +229,7 @@ class TestMVM(unittest.TestCase):
     def test_graph_box_graph_it_empty_doesnt_mutate_HM(self):
         self.GB.graph_it([])
         self.assertEqual(self.HM._history.size, 0)
-    def test_graph_box_graph_it_adds_new_to_history_and_writes(self):
+###    def test_graph_box_graph_it_adds_new_to_history_and_writes(self):
         self.GB.graph_it([('', [(0,1)])])
         self.assertEqual(self.HM._history.size, 1)
         self.assertEqual(self.HM._history[0], self.TM.request_plot_obj(True))
@@ -244,7 +244,7 @@ class TestMVM(unittest.TestCase):
         self.GB.graph_it([(empty_obj['text'], empty_obj['tuple_list'])])
         self.assertEqual(self.HM._history.size, 1)
         self.assertEqual(self.HM._history[0], not_empty_obj)
-    def test_graph_box_graph_it_retrieves_from_HM_not_TM(self):
+###    def test_graph_box_graph_it_retrieves_from_HM_not_TM(self):
         empty_obj = self.TM.request_plot_obj(True)
         self.HM.add_plot_obj(empty_obj)
         #populating HM and TM with different stuff
@@ -253,7 +253,7 @@ class TestMVM(unittest.TestCase):
         self.TM.request_add(1, dt.Die(5))
         obj_list = self.GB.graph_it([('', [(0,1)])])
         self.assertEqual(obj_list, [empty_obj])
-    def test_graph_box_graph_it_retrieves_according_to_use_axes(self):
+###    def test_graph_box_graph_it_retrieves_according_to_use_axes(self):
         axes_obj = self.TM.request_plot_obj(True)
         pts_obj = self.TM.request_plot_obj(False)
         pts_GB = mvm.GraphBox(self.TM, mvm.HistoryManager(), False)
@@ -465,7 +465,8 @@ class TestMVM(unittest.TestCase):
             'the range of numbers is 2-4\n' +
             'the mean is 3.0\nthe stddev is 0.7071'
              )
-        self.assertEqual(self.SB.display(8, 2), [info_text, stat_text, (4, 2)])
+        self.assertEqual(self.SB.display(8, 2),
+                         [info_text, stat_text, (4, 2), (2, 4)])
     def test_stat_box_display_formatting(self):
         self.TM.request_add(1, dt.WeightedDie({1:1000, 10000:1000}))
         stat_text = ('\n    1,000-10,000 occurred 1,000 times\n'+
@@ -477,7 +478,7 @@ class TestMVM(unittest.TestCase):
             'the mean is 5,000.5\nthe stddev is 4999.5'
              )
         self.assertEqual(self.SB.display(1000, 10000), 
-                         [info_text, stat_text, (1000, 10000)])
+                         [info_text, stat_text, (1000, 10000), (1, 10000)])
     def test_stat_box_display_empty_table(self):
         stat_text = ('\n    0 occurred 1 times\n'+
                      '    out of 1 total combinations\n\n'+
@@ -488,7 +489,7 @@ class TestMVM(unittest.TestCase):
             'the mean is 0.0\nthe stddev is 0.0'
              )
         self.assertEqual(self.SB.display(1000, 10000), 
-                         [info_text, stat_text, (0, 0)])
+                         [info_text, stat_text, (0, 0), (0, 0)])
 
     def test_info_box_display_current_page_weights_info_formatting(self):
         self.assertEqual(self.IB.display_current_page('weights_info', 2),

@@ -3,9 +3,20 @@
 
 #tools
 
-<SizeButton>:
-    text:'D' + str(self.die_size)
-
+<NumberSelect>:
+    orientation: 'vertical'
+    Button:
+        id:title
+        size_hint: 1, 0.5
+        on_press: root.open_pad()
+        background_color: (0.6, 0.4, 1.0, 1.0)
+        halign: 'center'
+    Button:
+        id: number
+        size_hint: 1, 0.5
+        on_press: root.open_pad()
+        background_color: (0.2, 0.1, 0.4, 1.0)
+        halign: 'center'
 <WeightsPopup>:
     size_hint: None, None
     title: ''
@@ -50,6 +61,8 @@
             pos_hint: {'x': 0, 'y': 0.9}
 <PlotCheckBox>:
     orientation: 'horizontal'
+    #text_: ''
+    #on_text_: self.two_line_text
     CheckBox:
         id: check_box
         size_hint: 0.1, 1
@@ -70,77 +83,13 @@
         size_hint: 0.9, 1
         FlashLabel:
             id:label
-            text: root.text
+            text: ''
             size_hint: None, 1
             width: self.texture_size[0]
 
-<PageBox>:
-    orientation:'vertical'
-    Label:
-        id: page_box_title
-        canvas:
-            Color:
-                rgba: 0.8,0,0,0.5
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        size_hint:1, .04
-        halign: 'center'
-        valign: 'middle'
-        text: 'TITLE'
-        text_size:self.size
-    BoxLayout:
-        id:buttons_container
-        orientation: 'horizontal'
-        size_hint: 1, 0.05
-        Button:
-            id:go_left
-            size_hint: 0.25, 1
-            text: '<==='
-            text_size:self.size
-            halign: 'right'
-            valign: 'middle'
-            shorten:True
-            shorten_from: 'right'
-            max_lines: 1
-            on_press: root.show_page(root.current_page - 1)
-        NumberInput:
-            id:jump_to
-            size_hint: 0.25, 1
-            on_number_val: root.text_check(self.text)
 
-        Label:
-            id:page_total
-            size_hint: 0.25, 1
 
-            font_size: (lambda:min(int(0.7 * self.height), int(0.35 * self.width)))()
-        Button:
-            id:go_right
-            size_hint: 0.25, 1
-            text: '===>'
-            text_size:self.size
-            halign: 'left'
-            valign: 'middle'
-            shorten:True
-            shorten_from: 'left'
-            max_lines: 1
-            on_press: root.show_page(root.current_page + 1)
-    Label:
-        canvas:
-            Color:
-                rgba: 0.4,0.8,0.8,0.3
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        id:text_container
-        size_hint: 1, 0.91
-        text:''
-        text_size: self.width, self.height
 
-<AddRmDice>:
-    orientation:'horizontal'
-    padding: 10
-    spacing: 10
 
 #big boxes
 <ChangeBox>:
@@ -178,7 +127,7 @@
             NumberInput:
                 id:custom_input
                 size_hint: 1, 0.4
-                on_number_val: root.assign_size_text(self.text)
+                on_changed: root.assign_size_text(self.text)
         FlashButton:
             id:make_weights
             size_hint: 0.5, 1
@@ -233,29 +182,113 @@
     BoxLayout:
         id: add_it
         size_hint:1, 0.21
+        orientation:'horizontal'
+        padding: 10
+        spacing: 10
 
-<InfoBox>:
+
+
+<PageBox>:
     orientation:'vertical'
-    padding:10
     Label:
-        id:stat_str
-        size_hint: 1, 0.15
-        text:'test'
-        text_size: self.size
+        id: page_box_title
+        canvas:
+            Color:
+                rgba: 0.8,0,0,0.5
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        size_hint:1, .04
         halign: 'center'
-    ScrollView:
-        id:table_str_wrapper
-        size_hint: 1, 0.25
+        valign: 'middle'
+        text: 'TITLE'
+        text_size:self.size
+    Slider:
+        id:choose
+        orientation:'horizontal'
+        min:1
+        max:100
+        value:1
+        step:1
+        size_hint:1, 0.05
+        on_value:root.parent_obj.choose(int(self.value), root.key)
+    BoxLayout:
+        id:buttons_container
+        orientation: 'horizontal'
+        size_hint: 1, 0.05
+        Button:
+            id:previous
+            size_hint: 0.3, 1
+            text: '<==='
+            text_size:self.size
+            halign: 'right'
+            valign: 'middle'
+            shorten:True
+            shorten_from: 'right'
+            max_lines: 1
+            on_press: root.parent_obj.previous(root.key)
         Label:
-            id:dice_table_str
-            text: 500*'adfgdg\n'
-            size_hint: 1, None
-            text_size: self.width, None
-            height: dice_table_str.texture_size[1]
-            halign: 'center'
+            id:pages
+            size_hint: 0.4, 1
+            font_size: (lambda:min(int(0.7 * self.height), int(0.35 * self.width)))()
+        Button:
+            id:next
+            size_hint: 0.3, 1
+            text: '===>'
+            text_size:self.size
+            halign: 'left'
+            valign: 'middle'
+            shorten:True
+            shorten_from: 'left'
+            max_lines: 1
+            on_press: root.parent_obj.next(root.key)
+    Label:
+        canvas:
+            Color:
+                rgba: 0.4,0.8,0.8,0.3
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        id:text_container
+        size_hint: 1, 0.86
+        text:''
+        text_size: self.width, self.height
+<InfoBox>:
+    
+    id: all_rolls_info
+    orientation: 'horizontal'
     PageBox:
-        id:weight_info
-        size_hint: 1, 0.6
+        id: full_text
+        key: 'full_text'
+        size_hint: 0.5, 1
+        parent_obj: root
+    BoxLayout:    
+        id: info_weights    
+        orientation: 'vertical'
+        size_hint: 0.5, 1
+        spacing:10
+        padding: 5
+        Label:
+            id:general_info
+            size_hint: 1, 0.15
+            text:'test'
+            text_size: self.size
+            halign: 'center'
+        ScrollView:
+            id:table_str_wrapper
+            size_hint: 1, 0.25
+            Label:
+                id:table_str
+                text: 500*'adfgdg\n'
+                size_hint: 1, None
+                text_size: self.width, None
+                height: table_str.texture_size[1]
+                halign: 'center'
+        PageBox:
+            id: weights_info
+            key: 'weights_info'
+            parent_obj: root
+            size_hint: 1, 0.6
 
 <GraphBox>:
     orientation: 'vertical'
@@ -299,7 +332,7 @@
         spacing: 10
         orientation: 'vertical'
         Label:
-            id: table_info
+            id: info_text
             size_hint: 1, 0.2
             text: 'no dice yet'
             text_size: self.size
@@ -320,23 +353,23 @@
                 pos_hint: {'x': 0.5, 'y': 0}
             #2nd row slider
             Slider:
-                id:start_slider
+                id:slider_1
                 orientation:'vertical'
                 min:0
                 max:100
                 value:1
                 step:1
                 size_hint:0.25, 0.82
-                on_value:root.show_stats()
+                on_value:root.assign_slider_value()
                 pos_hint: {'x': 0.2, 'y': 0.0}
             Slider:
-                id:stop_slider
+                id: slider_2
                 orientation:'vertical'
                 min:0
                 max:100
                 value:1
                 step:1
-                on_value:root.show_stats()
+                on_value:root.assign_slider_value()
                 size_hint:0.25, 0.82
                 pos_hint: {'x': 0.6, 'y': 0.0}
             #thrid row text input
@@ -346,17 +379,17 @@
                 size_hint:0.2, 0.15
                 pos_hint: {'x': 0.01, 'y': 0.9}
             NumberInput:
-                id:start_slider_text
-                text: '{:,}'.format(int(start_slider.value))
+                id: slider_1_text
+                text: '{:,}'.format(int(slider_1.value))
                 size_hint:0.3, 0.15
                 pos_hint: {'x': 0.2, 'y': 0.9}
-                on_number_val: root.assign_text_value('start')
+                on_text: root.assign_text_value()
             NumberInput:
-                id:stop_slider_text
-                text: '{:,}'.format(int(stop_slider.value))
+                id: slider_2_text
+                text: '{:,}'.format(int(slider_2.value))
                 size_hint:0.3, 0.15
                 pos_hint: {'x': 0.6, 'y': 0.9}
-                on_number_val: root.assign_text_value('stop')
+                on_text: root.assign_text_value()
         Label:
             id:stat_text
             text:'no stats'
@@ -383,14 +416,10 @@
     GraphBox:
         size_hint: 0.2, 1
         id: graph_box
-    BoxLayout:
+    InfoBox:
         size_hint: 0.2, 1
-        id: all_rolls_info
-        orientation: 'horizontal'
-        AllRollsBox:
-            id: all_rolls_box
-        InfoBox:
-            id: info_box
+        id: info_box
+        
             
     
 
