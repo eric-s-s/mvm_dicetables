@@ -2,7 +2,6 @@
 
 
 
-from itertools import cycle
 from decimal import Decimal
 
 import dicetables as dt
@@ -133,15 +132,18 @@ class GraphBox(object):
         tuple_list of a table.  returns objects for plotting.
         objects are plot_objects.  they are dictionaries.
         to plot, use key=pts and key=text.  also have key=x_range, y_range'''
+        def is_empty(obj):
+            '''checks if object is from empty table'''
+            return obj['text'] == '' and obj['tuple_list'] == [(0, 1)]
         plots = []
         for text, tuple_list  in text_tuple_list_lst:
             to_plot = self._history.get_obj(text, tuple_list)
             if not to_plot:
                 to_plot = self._table.request_plot_obj(self.use_axes)
-                if to_plot['tuple_list'] != [(0, 1)]:
+                if not is_empty(to_plot):
                     self._history.add_plot_obj(to_plot)
                     self._history.write_history()
-            if to_plot['tuple_list'] != [(0, 1)] and to_plot not in plots:
+            if not is_empty(to_plot) and to_plot not in plots:
                 plots.append(to_plot)
         return plots
     def clear_selected(self, text_tuple_list_lst):
@@ -422,40 +424,4 @@ class InfoBox(object):
         scrolling display.'''
         return [self._general_info(), self._table.request_info('text'),
                 self._parse_info('weights_info'), self._parse_info('full_text')]
-
-
-
-class GraphPopup(object):
-    def __init__(self, plot_lst, color_list, style_list):
-        '''creates alll the stuff for a plot program'''
-        if color_list:
-            self.colors = cycle(color_list)
-        else:
-            self.colors = cycle([('', '')])
-
-        if style_list:
-            self.styles = cycle(style_list)
-        else:
-            self.styles = cycle([('', '')])
-
-        temp_x = []
-        temp_y = []
-        self.plots = []
-        for obj in plot_lst:
-            new_obj = {}
-            new_obj['pts'] = obj['pts'][:]
-            new_obj['text'] = obj['text']
-            new_obj['labl_color'], new_obj['plt_color'] = self.colors.next()
-            new_obj['labl_style'], new_obj['plt_style'] = self.styles.next()
-            self.plots.append(new_obj)
-            temp_x += list(obj['x_range'])
-            temp_y += list(obj['y_range'])
-        self.x_range = (min(temp_x), max(temp_x))
-        self.y_range = (min(temp_y), max(temp_y))
-        self.legend_bindings = []
-    def bind(self, text, plot_line):
-        self.legend_bindings.append((text, plot_line))
-    def make_legend(self):
-        pass
-
 

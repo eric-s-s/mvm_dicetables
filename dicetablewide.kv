@@ -1,5 +1,5 @@
 #:kivy 1.0.9
-
+#:import Factory kivy.factory.Factory
 
 #tools
 
@@ -61,8 +61,6 @@
             pos_hint: {'x': 0, 'y': 0.9}
 <PlotCheckBox>:
     orientation: 'horizontal'
-    #text_: ''
-    #on_text_: self.two_line_text
     CheckBox:
         id: check_box
         size_hint: 0.1, 1
@@ -100,7 +98,8 @@
         valign: 'top'
         halign: 'center'
 
-
+<MySpinnerOption@SpinnerOption>:
+    background_color: .2, .4, 1, .8
 <AddBox>:
     id:bob
     orientation:'vertical'
@@ -128,14 +127,32 @@
                 id:custom_input
                 size_hint: 1, 0.4
                 on_changed: root.assign_size_text(self.text)
-        FlashButton:
-            id:make_weights
+        BoxLayout:
             size_hint: 0.5, 1
-            text: 'make weights'
-            text_size: self.size
-            halign: 'center'
-            valign: 'middle'
-            on_press: self.delay(root.add_weights)
+            orientation: 'horizontal'
+            FlashButton:
+                id:make_weights
+                size_hint: 0.5, 1
+                text: 'make\nweights'
+                text_size: self.size
+                halign: 'center'
+                valign: 'middle'
+                on_press: self.delay(root.add_weights)
+            BoxLayout:
+                size_hint: 0.5, 1
+                orientation: 'vertical'
+                Label:
+                    size_hint: 1, 0.5
+                    text: 'strength\nv'
+                    halign: 'center'
+                    valign: 'middle'
+                    #texture_size: self.size
+                Spinner:
+                    size_hint: 1, 0.5
+                    id: multiplier
+                    text: 'X1'
+                    values: ['X{}'.format(num) for num in range(1, 11)]
+                    option_cls: Factory.get('MySpinnerOption')
     BoxLayout:
         id: size_mod
         orientation: 'horizontal'
@@ -292,9 +309,11 @@
 
 <GraphBox>:
     orientation: 'vertical'
-    BoxLayout:
+    StackLayout:
+    #BoxLayout:
         id: graph_space
-        orientation: 'vertical'
+        #orientation: 'vertical'
+        orientation: 'lr-tb'
         size_hint: 1, 0.9
     BoxLayout:
         size_hint: 1, 0.1

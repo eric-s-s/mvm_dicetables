@@ -2,7 +2,6 @@
 # pylint: disable=too-many-public-methods, maybe-no-member, super-on-old-class
 '''requires kivy and kivy garden graph'''
 from itertools import cycle as itertools_cycle
-from decimal import Decimal
 
 import matplotlib.pyplot as plt
 
@@ -15,13 +14,13 @@ from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.dropdown import DropDown
-from kivy.properties import (NumericProperty, StringProperty,
-                             BooleanProperty, ObjectProperty)
+from kivy.properties import (StringProperty, BooleanProperty,
+                               ObjectProperty, ListProperty)
 from kivy.clock import Clock
 import dicetables as dt
 import numpy as np
 import file_handler as fh
-import mvm
+import dt_gui_mvm as mvm
 from kivy.garden.graph import MeshLinePlot
 
 INTRO_TEXT = ('this is a platform for finding the probability of dice ' + 
@@ -56,6 +55,7 @@ class FlashButton(Button):
     you done taht press real clear-like. assign on_press using self.delay OR
     make the function it calls use self.delay or you won't see the flash.'''
     die = ObjectProperty(dt.Die(1))
+    lst = ListProperty([])
     def __init__(self, delay_time=0.25, **kwargs):
         super(FlashButton, self).__init__(**kwargs)
         self.delay_time = delay_time
@@ -461,10 +461,11 @@ class AddBox(BoxLayout):
     def __init__(self, **kwargs):
         super(AddBox, self).__init__(**kwargs)
     def initialize(self):
-        '''how the box is packed'''
+        '''called at main app init. workaround for kv file loading after py'''
         for preset_text in self.vm.presets:
             btn = Button(text=preset_text, on_press=self.assign_size_btn)
             self.ids['presets'].add_widget(btn)
+        self.ids['multiplier'].bind(text=self.assign_multiplier)
         self.display_die()
     def update(self):
         '''called by main app at dice change'''
@@ -490,6 +491,10 @@ class AddBox(BoxLayout):
         '''assigns a die modifier and new die when slider is moved'''
         mod = int(self.ids['modifier'].value)
         self.vm.set_mod(mod)
+        self.display_die()
+    def assign_multiplier(self, spinner, text):
+        multiplier = int(text[1:])
+        self.vm.set_multiplier(multiplier)
         self.display_die()
     def display_die(self):
         '''all changes to size, mod and weight call this function'''
@@ -587,7 +592,7 @@ class InfoBox(BoxLayout):
     def __init__(self, **kwargs):
         super(InfoBox, self).__init__(**kwargs)
     def initialize(self):
-        '''called at main app init. workaround for kv file loading before py'''
+        '''called at main app init. workaround for kv file loading after py'''
         self.ids['full_text'].set_title(
             'here are all the rolls and their frequency'
             )
@@ -621,30 +626,18 @@ class InfoBox(BoxLayout):
 class PlotCheckBox(BoxLayout):
     '''a checkbox with associated label and function to return label if box
     checked'''
-    parent_obj = ObjectProperty(BoxLayout)
+    #parent_obj = ObjectProperty(BoxLayout)
     tuple_list = ObjectProperty([(0, 1)])
     text = StringProperty('')
     active = BooleanProperty(False)
     def __init__(self, reloader=True, **kwargs):
         super(PlotCheckBox, self).__init__(**kwargs)
         self.ids['check_box'].bind(active=self._change_active)
-        #self.bind(on_text_=self.two_line_text)
-        if reloader:
-            self.ids['scroller'].size_hint = (0.7, 1)
-            btn = FlashButton(text='reload', size_hint=(0.2, 0.6), max_lines=1,
-                              valign='middle', halign='center',
-                              on_press=self.reload)
-            btn.texture_size = btn.size
-            self.add_widget(btn)
-    def reload(self, btn):
-        '''reloads the object that checkox pts to as main table'''
-        #print self.obj
-        if self.text:
-            btn.delay(self.parent_obj.reload, self.text, self.tuple_list)
+        self.bind(text=self.split_text)
     def _change_active(self, checkbox, value):
         '''a helper function to bind checkbox active to main active'''
         self.active = self.ids['check_box'].active
-    def on_text(self, instance, text, split_char='\\'):
+    def split_text(self, instance, text, split_char='\\'):
         '''makes a new two-line display label while preserving original in'''
         cut_off = 30
         if len(self.text) <= cut_off:
@@ -673,95 +666,100 @@ class GraphBox(BoxLayout):
                                                on_press=self.confirm.dismiss))
         
     def initialize(self):
-        '''called at main app init. workaround for kv file loading before py'''
+        '''called at main app init. workaround for kv file loading after py'''
         self.ids['graph_space'].add_widget(PlotCheckBox(size_hint=(1, 0.5), 
                                                         parent_obj=self))
+        self.update()
     def update(self):
         '''updates the current window to display new graph history and current
         table to graph'''
-        #new_string = main().request_info('table_str').replace('\n', ' \\ ')
-        #self.plot_current = {'text':''}
-        #self.plot_current['text'] = new_string
         current, history = self.vm.display()
+        #sz_hint for 'past graphs' label to take up all the space
+        #base_y make sure other widgets fit
+        rows = len(history) + 3
+        base_y = .99/rows
+        if base_y > 0.1:
+            base_y = 0.1
+        sz_hint = (1, 1 - (rows - 1) * base_y)
+        
         self.ids['graph_space'].clear_widgets()
         self.ids['graph_space'].add_widget(Label(text='past graphs',
-                                                 size_hint=(1, 0.1)))
-        for text_, tuple_list_ in history[::-1]:
-            check = PlotCheckBox(parent_obj=self, size_hint=(1, 0.1), 
-                                 active=False, tuple_list=tuple_list_)
+                                                 halign='center',
+                                                 size_hint=sz_hint))
+        for text_, tuple_list_ in history:
+            check = PlotCheckBox(size_hint=(0.8, base_y), active=False,
+                                 tuple_list=tuple_list_)
+            reload_ = FlashButton(
+                size_hint=(0.2, base_y), lst=[text_, tuple_list_], max_lines=1,
+                text='reload', valign='middle', halign='center',
+                on_press=lambda btn: btn.delay(self.reload, btn)
+                )
             self.ids['graph_space'].add_widget(check)
+            self.ids['graph_space'].add_widget(reload_)
             check.text = text_
 
 
     
         self.ids['graph_space'].add_widget(Label(text='new table',
-                                                 size_hint=(1, 0.1)))
-        check = PlotCheckBox(size_hint=(1, 0.1), active=True, reloader=False, 
+                                                 size_hint=(1, base_y)))
+        check = PlotCheckBox(size_hint=(1, base_y), active=True,
                              tuple_list = current[1])
         self.ids['graph_space'].add_widget(check)
         check.text = current[0]
         Clock.schedule_once(lambda dt: check.ids['label'].flash_it(), 0.01)
-
+    def reload(self, btn):
+        self.vm.reload(btn.lst[0], btn.lst[1])
+        self.parent.do_update()
     def graph_it(self):
         '''prepares plot and calls PlotPopup'''
         to_plot = []
-        #for item in self.ids['graph_space'].children[1:]:
         for item in self.ids['graph_space'].children[:]:
             if isinstance(item, PlotCheckBox):
                 if item.active:
                     to_plot.append((item.text, item.tuple_list))
-        #current = self.ids['graph_space'].children[0]
-        #if (current.active and current.text):
-        #    to_plot.insert(0, (current.text, current.tuple_list))
         plots = self.vm.graph_it(to_plot)
-        print plots
         self.update()
-        #if to_plot:
-        #    #plotter = PlotPopup()
-        #    #plotter.add_list(to_plot)
-        #    #plotter.open()
-        #    
-        #    #for line in plt.figure(1).axes[0].lines:
-        #    #    if line.get_label() == 'hi':
-        #    #        print line.get_ydata()
-        #    #        line.set_zorder(10)
-        #    
-        #    plt.figure(1)
-        #    plt.clf()
-        #    plt.ion()
-        #    plt.ylabel('pct of the total occurences')
-        #    plt.xlabel('values')
-        #    pt_style = itertools_cycle(['o', '<', '>', 'v', 's', 'p', '*',
-        #                                'h', 'H','+', 'x', 'D', 'd'])
-        #    colors = itertools_cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
-        #    for obj in to_plot:
-        #        style = '{}-{}'.format(next(pt_style), next(colors))
-        #        plt.plot(obj['pts'][0], obj['pts'][1], style, label=obj['text'])
-        #    plt.legend(loc='best')
-        #    plt.show()
+        if plots:
+            #plotter = PlotPopup()
+            #plotter.add_list(to_plot)
+            #plotter.open()
+            
+            #for line in plt.figure(1).axes[0].lines:
+            #    if line.get_label() == 'hi':
+            #        print line.get_ydata()
+            #        line.set_zorder(10)
+            plt.figure(1)
+            plt.clf()
+            plt.ion()
+            plt.ylabel('pct of the total occurences')
+            plt.xlabel('values')
+            pt_style = itertools_cycle(['o', '<', '>', 'v', 's', 'p', '*',
+                                        'h', 'H','+', 'x', 'D', 'd'])
+            colors = itertools_cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
+            for obj in plots:
+                style = '{}-{}'.format(next(pt_style), next(colors))
+                plt.plot(obj['pts'][0], obj['pts'][1], style, label=obj['text'])
+            plt.legend(loc='best')
+            plt.show()
     def clear_all(self, btn):
         '''clear graph history'''
         self.confirm.dismiss()
-        self.plot_history = np.array([], dtype=object)
+        self.vm.clear_all()
         self.update()
     def clear_selected(self):
         '''clear selected checked items from graph history'''
-        new_history = []
-        for index in range(len(self.plot_history)):
-            if not self.ids['graph_space'].children[index + 2].active:
-                new_history.append(self.plot_history[index])
-        self.plot_history = np.array(new_history[:], dtype=object)
+        to_clear = []
+        for item in self.ids['graph_space'].children[1:]:
+            if isinstance(item, PlotCheckBox):
+                if item.active:
+                    to_clear.append((item.text, item.tuple_list))
+        self.vm.clear_selected(to_clear)
         self.update()
     def write_history(self):
         fh.write_history_np(self.plot_history)
     def read_history(self):
         msg, self.plot_history = fh.read_history_np()
-        self.update()
         return msg
-    
-# kv file line 288
-
-# kv file line NONE
 
 
 # kv file line 362
@@ -776,16 +774,16 @@ class DicePlatform(BoxLayout):
         table = mvm.TableManager()
         history = mvm.HistoryManager()
         self._read_hist_msg = history.read_history()
-        self._cb = mvm.ChangeBox(table)
-        self._ab = mvm.AddBox(table)
-        self._sb = mvm.StatBox(table)
-        self._ib = mvm.InfoBox(table)
-        self._gb = mvm.GraphBox(table, history, True)
-        self.ids['add_box'].vm = self._ab
-        self.ids['change_box'].vm = self._cb
-        self.ids['info_box'].vm = self._ib
-        self.ids['stat_box'].vm = self._sb
-        self.ids['graph_box'].vm = self._gb
+        cb = mvm.ChangeBox(table)
+        ab = mvm.AddBox(table)
+        sb = mvm.StatBox(table)
+        gb = mvm.GraphBox(table, history, True)
+        ib = mvm.InfoBox(table)
+        self.ids['change_box'].vm = cb
+        self.ids['add_box'].vm = ab
+        self.ids['stat_box'].vm = sb
+        self.ids['graph_box'].vm = gb
+        self.ids['info_box'].vm = ib
         self.initializer()
     def initializer(self):
         '''initializes various values that couldn't be written before both .py
@@ -801,17 +799,15 @@ class DicePlatform(BoxLayout):
         else:
             header = ('TRIED TO LOAD HISTORY BUT\nTHE FILE HAD AN ERROR\n'+
                          'whatcha gonna do about it?  cry?\n\n')
-
         self.ids['change_box'].ids['intro'].text = header + INTRO_TEXT
     
     def do_update(self):
         '''updates appropriate things for any die add or remove'''
         self.ids['change_box'].update()
         self.ids['add_box'].update()
-        self.ids['info_box'].update()
         self.ids['stat_box'].update()
         self.ids['graph_box'].update()
-
+        self.ids['info_box'].update()
 
 # kv file line NONE
 class DiceTableWideApp(App):
@@ -819,21 +815,8 @@ class DiceTableWideApp(App):
         bob = DicePlatform()
         Window.size = (1500, 700)
         return bob
-#    def on_start(self):
-#        header = '' 
-#        msg = main().ids['graph_box'].read_history()
-#        if msg == 'ok':
-#            header = ('IF YOU GO TO THE GRAPH AREA,\n'+
-#                       'YOU\'LL FIND YOUR PREVIOUS HISTORY\n\n')
-#        if 'error' in msg and 'no file' not in msg:
-#            header = ('TRIED TO LOAD HISTORY BUT\nTHE FILE HAD AN ERROR\n'+
-#                         'whatcha gonna do about it?  cry?\n\n')
-#
-#        main().ids['change_box'].ids['intro'].text = header + INTRO_TEXT
-    def on_stop(self):
-        main().ids['graph_box'].write_history()
+    
     def on_pause(self):
-        main().ids['graph_box'].write_history()
         return True
     def on_resume(self):
         pass
