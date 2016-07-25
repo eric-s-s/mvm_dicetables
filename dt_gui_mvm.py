@@ -69,14 +69,20 @@ class TableManager(object):
         '''reset dice table'''
         self._table = dt.DiceTable()
 
+
+def not_empty_obj(plot_obj):
+    '''returns bool. tests if plot_object is empty. used by
+    HistoryManager.add_plot_obj and GraphBox.graph_it.'''
+    return bool(plot_obj['text']) and plot_obj['tuple_list'] != [(0, 1)]
+
 class HistoryManager(object):
     '''keeps track of plot history and writing'''
     def __init__(self):
         self._history = np.array([], dtype=object)
 
     def add_plot_obj(self, new_obj):
-        '''adds a new plot obj'''
-        if new_obj not in self._history:
+        '''adds a new plot obj. will not add empty table or duplicates'''
+        if new_obj not in self._history and not_empty_obj(new_obj):
             self._history = np.append(self._history, new_obj)
     def get_obj(self, text, tuple_list):
         '''checks to see if any of the objects in history have tuple_list and
@@ -132,18 +138,14 @@ class GraphBox(object):
         tuple_list of a table.  returns objects for plotting.
         objects are plot_objects.  they are dictionaries.
         to plot, use key=pts and key=text.  also have key=x_range, y_range'''
-        def is_empty(obj):
-            '''checks if object is from empty table'''
-            return obj['text'] == '' and obj['tuple_list'] == [(0, 1)]
         plots = []
         for text, tuple_list  in text_tuple_list_lst:
             to_plot = self._history.get_obj(text, tuple_list)
             if not to_plot:
                 to_plot = self._table.request_plot_obj(self.use_axes)
-                if not is_empty(to_plot):
-                    self._history.add_plot_obj(to_plot)
-                    self._history.write_history()
-            if not is_empty(to_plot) and to_plot not in plots:
+                self._history.add_plot_obj(to_plot)
+                self._history.write_history()
+            if to_plot not in plots and not_empty_obj(to_plot):
                 plots.append(to_plot)
         return plots
     def clear_selected(self, text_tuple_list_lst):
@@ -162,6 +164,7 @@ class GraphBox(object):
     def clear_all(self):
         '''clears the history'''
         self._history.clear_all()
+        self._history.write_history()
     def display(self):
         '''returns a tuple for a display output.
         (table_manager_text_and_tuple_list, history_manager.get_labels())'''
@@ -178,7 +181,7 @@ class GraphBox(object):
 def get_add_rm(die, number, enable_remove):
     '''returns a list of texts in appropriate order for display on buttons
     and labels. die is a child of dt.ProtoDie. number is an int>=0.
-    enable_remove is a bool.'''
+    enable_remove is a bool. see AddBox.display_die and ChangeBox.display'''
     display = []
     size_and_max = [(6, 500), (16, 100), (50, 50), (100, 5), (10000, 1)]
     add_choices = [1, 5, 10, 50, 100, 500]
@@ -200,9 +203,6 @@ def get_add_rm(die, number, enable_remove):
         if num <= max_add:
             display.append('{:+}'.format(num))
     return display
-
-
-
 
 class ChangeBox(object):
     '''controls changing the number of dice already in the table'''
@@ -275,7 +275,7 @@ class AddBox(object):
         '''number is an int >=0. adds to the table_manager'''
         self._table.request_add(number, self._die)
     def _update_die(self):
-        '''updates the die'''
+        '''updates the die. make_die at line 233'''
         self._die = make_die(self._size, self._mod, self._multiplier,
                              self._dictionary)
     def set_size(self, new_size):
