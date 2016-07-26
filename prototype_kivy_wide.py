@@ -756,9 +756,9 @@ class GraphBox(BoxLayout):
             pt_style = itertools_cycle(['o', '<', '>', 'v', 's', 'p', '*',
                                         'h', 'H', '+', 'x', 'D', 'd'])
             colors = itertools_cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
-            for obj in plots:
+            for text, pts in plots[2]:
                 style = '{}-{}'.format(next(pt_style), next(colors))
-                plt.plot(obj['pts'][0], obj['pts'][1], style, label=obj['text'])
+                plt.plot(pts[0], pts[1], style, label=text)
             plt.legend(loc='best')
             plt.show()
     def clear_all(self, btn):

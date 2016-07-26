@@ -238,9 +238,50 @@ class TestMVM(unittest.TestCase):
         msg = to_test.read_history()
         self.assertEqual(msg, 'ok')
         self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
+    def test_history_manager_get_graphs_on_empty_history(self):
+        self.assertEqual(
+            self.HM.get_graphs(),
+            (
+                (float('inf'), float('-inf')),
+                (float('inf'), float('-inf')),
+                []
+            )
+        )
+    def test_history_manager_get_graphs_x_range(self):
+        self.TM.request_add(1, dt.ModDie(1, -101))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.TM.request_add(1, dt.ModDie(1, 199))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.assertEqual(self.HM.get_graphs()[0], (-100, 100))
+    def test_history_manager_get_graphs_y_range(self):
+        self.TM.request_add(1, dt.Die(1))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.TM.request_add(1, dt.Die(2))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.assertEqual(self.HM.get_graphs()[1], (50.0, 100.0))
+    def test_history_manager_get_graphs(self):
+        self.TM.request_add(1, dt.Die(1))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.TM.request_add(1, dt.Die(1))
+        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.assertEqual(
+            self.HM.get_graphs(),
+            (
+                (1, 2),
+                (100.0, 100.0),
+                [('1D1', [(1,), (100.0,)]), ('2D1', [(2,), (100.0,)])]
+            )
+        )
 
-    def test_graph_box_graph_it_returns_empty_list(self):
-        self.assertEqual(self.GB.graph_it([]), [])
+    def test_graph_box_graph_it_returns_empty_grapher_info(self):
+        self.assertEqual(
+            self.GB.graph_it([]),
+            (
+                (float('inf'), float('-inf')),
+                (float('inf'), float('-inf')),
+                []
+            )
+        )
     def test_graph_box_graph_it_empty_doesnt_mutate_HM(self):
         self.GB.graph_it([])
         self.assertEqual(self.HM.get_labels(), [])
@@ -276,25 +317,24 @@ class TestMVM(unittest.TestCase):
         self.TM.request_add(1, dt.Die(3))
         self.HM.add_plot_obj(self.TM.request_plot_obj(True))
         self.TM.request_add(1, dt.Die(5))
-        obj_list = self.GB.graph_it([('1D2', [(1, 1), (2, 1)])])
-        self.assertEqual(obj_list, [obj_1])
+        text_pts = self.GB.graph_it([('1D2', [(1, 1), (2, 1)])])[2]
+        self.assertEqual(text_pts, [('1D2', [(1, 2), (50.0, 50.0)])])
     def test_graph_box_graph_it_retrieves_according_to_use_axes(self):
         self.TM.request_add(1, dt.Die(1))
         axes_obj = self.TM.request_plot_obj(True)
+        axes_data = (axes_obj['text'], axes_obj['pts'])
         pts_obj = self.TM.request_plot_obj(False)
+        pts_data = (pts_obj['text'], pts_obj['pts'])
         pts_GB = mvm.GraphBox(self.TM, mvm.HistoryManager(), False)
         self.assertNotEqual(axes_obj, pts_obj)
-        self.assertEqual(pts_GB.graph_it([('1D1', [(1, 1)])]), [pts_obj])
-        self.assertEqual(self.GB.graph_it([('1D1', [(1, 1)])]), [axes_obj])
-    def test_graph_box_graph_it_doesnt_add_empty_table_to_list(self):
-        self.assertEqual(self.GB.graph_it([('', [(0, 1)])]), [])
-    def test_graph_box_graph_it_doesnt_add_duplicates_to_list(self):
-        temp = mvm.TableManager()
-        temp.request_add(1, dt.Die(1))
-        obj = (temp.request_plot_obj(True))
-        self.HM.add_plot_obj(obj)
-        plots = self.GB.graph_it([('1D1', [(1, 1)]), ('1D1', [(1, 1)])])
-        self.assertEqual(plots, [obj])
+        self.assertEqual(
+            pts_GB.graph_it([('1D1', [(1, 1)])]),
+            ((1, 1), (100.0, 100.0), [pts_data])
+        )
+        self.assertEqual(
+            self.GB.graph_it([('1D1', [(1, 1)])]),
+            ((1, 1), (100.0, 100.0), [axes_data])
+        )
     def test_graph_box_clear_selected_does_nothing_with_empty_list(self):
         self.TM.request_add(1, dt.Die(1))
         self.HM.add_plot_obj(self.TM.request_plot_obj(True))

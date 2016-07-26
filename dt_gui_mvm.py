@@ -69,12 +69,6 @@ class TableManager(object):
         '''reset dice table'''
         self._table = dt.DiceTable()
 
-
-def not_empty_obj(plot_obj):
-    '''returns bool. tests if plot_object is empty. used by
-    HistoryManager.add_plot_obj and GraphBox.graph_it.'''
-    return bool(plot_obj['text']) and plot_obj['tuple_list'] != [(0, 1)]
-
 class HistoryManager(object):
     '''keeps track of plot history and writing'''
     def __init__(self):
@@ -82,6 +76,9 @@ class HistoryManager(object):
 
     def add_plot_obj(self, new_obj):
         '''adds a new plot obj. will not add empty table or duplicates'''
+        def not_empty_obj(obj):
+            '''returns bool. tests if plot_object is empty'''
+            return bool(obj['text']) and obj['tuple_list'] != [(0, 1)]
         if new_obj not in self._history and not_empty_obj(new_obj):
             self._history = np.append(self._history, new_obj)
     def get_obj(self, text, tuple_list):
@@ -103,6 +100,19 @@ class HistoryManager(object):
         for obj in self._history:
             labels.append((obj['text'], obj['tuple_list'][:]))
         return labels
+    def get_graphs(self):
+        '''returns ((x_range of history), (y_range of history),
+                    [(graph_text, [graph_values]), -> for each obj in history])
+        '''
+        out = []
+        x_range = y_range = (float('inf'), float('-inf'))
+        for obj in self._history:
+            x_range = (min(x_range[0], obj['x_range'][0]),
+                       max(x_range[1], obj['x_range'][1]))
+            y_range = (min(y_range[0], obj['y_range'][0]),
+                       max(y_range[1], obj['y_range'][1]))
+            out.append((obj['text'], obj['pts'][:]))
+        return (x_range, y_range, out)
     def clear_all(self):
         '''clear graph history'''
         self._history = np.array([], dtype=object)
@@ -133,21 +143,19 @@ class GraphBox(object):
         self._table = table_manager
         self.use_axes = use_axes
     def graph_it(self, text_tuple_list_lst):
-        '''gets passed a list of tuples containing 'tuple_list' and txt.
-        'tuple_list' is the 'tuple_list' key in a plot object or a
-        tuple_list of a table.  returns objects for plotting.
-        objects are plot_objects.  they are dictionaries.
-        to plot, use key=pts and key=text.  also have key=x_range, y_range'''
-        plots = []
+        '''gets passed a list of tuples containing (text, tuple_list).
+        text=str of table, tuple_list=[(roll=int, val=int), ...]
+        returns ( (x_range), (y_range), [(text, [graphing_values])...] )'''
+        #history manager has built-in measures for duplicates and empties
+        temp = HistoryManager()
         for text, tuple_list  in text_tuple_list_lst:
             to_plot = self._history.get_obj(text, tuple_list)
             if not to_plot:
                 to_plot = self._table.request_plot_obj(self.use_axes)
                 self._history.add_plot_obj(to_plot)
                 self._history.write_history()
-            if to_plot not in plots and not_empty_obj(to_plot):
-                plots.append(to_plot)
-        return plots
+            temp.add_plot_obj(to_plot)
+        return temp.get_graphs()
     def clear_selected(self, text_tuple_list_lst):
         '''gets passed a list of tuples containing 'tuple_list' and txt.
         'tuple_list' is the 'tuple_list' key in a plot object or a
