@@ -592,18 +592,27 @@ class TestMVM(unittest.TestCase):
     def test_info_box_display_current_page_full_text_formatting(self):
         self.assertEqual(self.IB.display_current_page('full_text', 2),
                          ('0\n1', 1, 5))
+    def test_info_box_make_pages(self):
+        self.IB.make_pages('full_text', 2)
+        expected = ['0\n1', '2\n3', '4\n5', '6\n7', '8\n9']
+        self.assertEqual(self.IB._pages['full_text'], expected)
+    def test_info_box_make_pages_with_remainder(self):
+        self.IB.make_pages('full_text', 6)
+        expected = ['0\n1\n2\n3\n4\n5', '6\n7\n8\n9\n \n ']
+        self.assertEqual(self.IB._pages['full_text'], expected)
+    def test_info_box_display_current_page_checks_page_size_change(self):
+        self.IB.make_pages('full_text', 6)
+        old = self.IB._pages['full_text']
+        self.IB.display_current_page('full_text', 3)
+        self.assertNotEqual(old, self.IB._pages['full_text'])
     def test_info_box_display_current_page_middle_page(self):
         self.IB._current_page['full_text'] = 2
         self.assertEqual(self.IB.display_current_page('full_text', 3),
                          ('3\n4\n5', 2, 4))
-    def test_info_box_display_current_page_last_page_no_fill(self):
+    def test_info_box_display_current_page_last_page(self):
         self.IB._current_page['full_text'] = 2
         self.assertEqual(self.IB.display_current_page('full_text', 5),
                          ('5\n6\n7\n8\n9', 2, 2))
-    def test_info_box_display_current_page_last_page_fill(self):
-        self.IB._current_page['full_text'] = 4
-        self.assertEqual(self.IB.display_current_page('full_text', 3),
-                         ('9\n \n ', 4, 4))
     def test_info_box_display_current_page_page_not_in_range(self):
         self.IB._current_page['full_text'] = 17
         self.assertEqual(self.IB.display_current_page('full_text', 3),
@@ -640,10 +649,13 @@ class TestMVM(unittest.TestCase):
     def test_info_box_display_paged_works_as_expected(self):
         general_info = ('the range of numbers is 10-1,000\n' +
                         'the mean is 12,345.6\nthe stddev is 12.34')
-
         self.assertEqual(self.IB.display_paged(1, 1),
                          [general_info, 'text', ('1D1  W: 3', 1, 2),
                           ('0', 1, 10)])
+    def test_info_box_display_updates_pages(self):
+        self.IB.make_pages('full_text', 2)
+        self.IB._pages['full_text'][0] = 'should not\nbe this'
+        self.assertEqual(self.IB.display_paged(2, 2)[3], ('0\n1', 1, 5))
     def test_info_box_display_works_as_expected(self):
         general_info = ('the range of numbers is 10-1,000\n' +
                         'the mean is 12,345.6\nthe stddev is 12.34')
@@ -651,14 +663,6 @@ class TestMVM(unittest.TestCase):
                          [general_info, 'text',
                           '1D1  W: 3\n    1 has weight: 3',
                           '0\n1\n2\n3\n4\n5\n6\n7\n8\n9'])
-
-
-#self.dictionary = {
-#            'weights_info': '1D1  W: 3\n    a roll of 1 has a weight of 3',
-#            'full_text': '\n'.join([str(num) for num in range(10)]),
-#            'mean': 12345.6,
-#            'stddev': 12.34,
-#            'range': (10, 1000)}
 
 
 

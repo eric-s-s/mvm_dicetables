@@ -359,6 +359,8 @@ class InfoBox(object):
         '''simply inits with a TableManager'''
         self._table = table_manager
         self._current_page = {'full_text': 1, 'weights_info': 1}
+        self._lines_per_page = {'full_text': 1, 'weights_info': 1}
+        self._pages = {'full_text': [''], 'weights_info': ['']}
     def _parse_info(self, key):
         '''key = 'weights_info' or 'full_text'. preps text. returns new text'''
         text = self._table.request_info(key).rstrip('\n')
@@ -367,29 +369,36 @@ class InfoBox(object):
             text = text.replace(' a ', ' ')
             text = text.replace(' of ', ': ')
         return text
-    def display_current_page(self, key, lines_per_page):
-        '''key is 'weights_info' or 'full_text'.  page is int of page_number,
-        lines_per_page is int > 1.  if page is outside of total_page, loops
-        using modulo.  returns (text, current_page, total_pages)'''
+    def make_pages(self, key, lines_per_page):
+        '''makes a list of pages so that pages can be quickly referenced'''
         text = self._parse_info(key)
         lines = text.split('\n')
-        page_num = self._current_page[key]
-        total_pages, remainder = divmod(len(lines), lines_per_page)
-        total_pages += bool(remainder)
-        #last page is special case, indicated by page = 0
-        page_num = page_num % total_pages
-        if page_num != 0:
-            end = page_num * lines_per_page
-            start = end - lines_per_page
-            page = '\n'.join(lines[start:end])
-        else:
-            start = (total_pages - 1) * lines_per_page
-            last_lines = lines[start:]
-            last_lines += (lines_per_page - len(last_lines)) * [' ']
-            page = '\n'.join(last_lines)
+        self._lines_per_page[key] = lines_per_page
+        self._pages[key] = []
+        while len(lines) > lines_per_page:
+            self._pages[key].append('\n'.join(lines[:lines_per_page]))
+            lines = lines[lines_per_page:]
+        for _ in range(lines_per_page - len(lines)):
+            lines.append(' ')
+        if lines:
+            self._pages[key].append('\n'.join(lines))
+    def display_current_page(self, key, lines_per_page):
+        '''key is 'full_text' or 'weights_info'.  lines_per_page = int > 1.
+        checks if the number of pages changed, if so recalculates pages.
+        current page uses modulo, so can loop through any values.
+        returns (page_text, current_page_number, total_pages_number).'''
+        if self._lines_per_page[key] != lines_per_page:
+            self.make_pages(key, lines_per_page)
+        total_pages = len(self._pages[key])
+        if total_pages == 0:
+            total_pages = 1
+        page_num = self._current_page[key] % total_pages
+        if page_num == 0:
             page_num = total_pages
+        page = self._pages[key][page_num - 1]
         self._current_page[key] = page_num
         return (page, page_num, total_pages)
+
     def display_next_page(self, key, lines_per_page):
         '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
         updates current_page += 1. loops from last to first page.
@@ -421,8 +430,10 @@ class InfoBox(object):
         return text
     def display_paged(self, weights_lines, full_text_lines):
         '''weights_lines and full_text_lines are ints > 1 = lines_per_page
-        for weights_info and full_text
+        for weights_info and full_text.  updates pages and
         returns [general_info, table_str, (weights_info), (full_text)]'''
+        self.make_pages('weights_info', weights_lines)
+        self.make_pages('full_text', full_text_lines)
         return [self._general_info(), self._table.request_info('text'),
                 self.display_current_page('weights_info', weights_lines),
                 self.display_current_page('full_text', full_text_lines)]
