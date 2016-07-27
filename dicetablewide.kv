@@ -220,19 +220,10 @@
         valign: 'middle'
         text: 'TITLE'
         text_size:self.size
-    Slider:
-        id:choose
-        orientation:'horizontal'
-        min:1
-        max:100
-        value:1
-        step:1
-        size_hint:1, 0.05
-        on_value:root.parent_obj.choose(int(self.value), root.key)
     BoxLayout:
         id:buttons_container
         orientation: 'horizontal'
-        size_hint: 1, 0.05
+        size_hint: 1, 0.07
         Button:
             id:previous
             size_hint: 0.3, 1
@@ -259,17 +250,30 @@
             shorten_from: 'left'
             max_lines: 1
             on_press: root.parent_obj.next(root.key)
-    Label:
-        canvas:
-            Color:
-                rgba: 0.4,0.8,0.8,0.3
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        id:text_container
-        size_hint: 1, 0.86
-        text:''
-        text_size: self.width, self.height
+    BoxLayout:
+        id: text_shell
+        orientation: 'horizontal'
+        size_hint: 1, 0.89
+        Label:
+            canvas:
+                Color:
+                    rgba: 0.4,0.8,0.8,0.3
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            id:text_container
+            size_hint: 0.9, 1
+            text:''
+            text_size: self.width, self.height
+        Slider:
+            id:choose
+            orientation:'vertical'
+            min:1
+            max:1
+            value: 1
+            step:1
+            size_hint:0.1, 1
+            on_value:root.parent_obj.choose(self, root.key)
 <InfoBox>:
     
     id: all_rolls_info

@@ -547,9 +547,9 @@ class PageBox(BoxLayout):
         '''reset font_size = f_size,
         [title ratio, , slider ratio, button ratio, text ratio] = ratios'''
         self.ids['page_box_title'].size_hint_y = ratios[0]
-        self.ids['choose'].size_hint_y = ratios[1]
-        self.ids['buttons_container'].size_hint_y = ratios[2]
-        self.ids['text_container'].size_hint_y = ratios[3]
+        #self.ids['choose'].size_hint_y = ratios[1]
+        self.ids['buttons_container'].size_hint_y = ratios[1]
+        self.ids['text_shell'].size_hint_y = ratios[2]
     def set_title(self, title):
         '''title is a string. sets the title of the box.'''
         self.ids['page_box_title'].text = title
@@ -563,8 +563,11 @@ class PageBox(BoxLayout):
         self.ids['text_container'].text = page
         self.ids['text_container'].text_size = self.ids['text_container'].size
         self.ids['pages'].text = '{}/{}'.format(page_num, total_pages)
-        self.ids['choose'].value = page_num
+        #in order to reverse slider movement,the value used by slider (having
+        #the same max and min as the pages) is the opposite
+        slider_val = total_pages + 1 - page_num
         self.ids['choose'].max = total_pages
+        self.ids['choose'].value = slider_val
 class StatBox(BoxLayout):
     '''box for getting and displaying stats about rolls. parent app is what's
     called for dice actions and info updates. all calls are
@@ -614,14 +617,16 @@ class InfoBox(BoxLayout):
             'here are all the rolls and their frequency'
             )
         self.ids['full_text'].ids['page_box_title'].font_size *= 0.75
-        self.ids['weights_info'].reset_sizes([0.1, 0.07, 0.1, 0.73])
+        self.ids['weights_info'].reset_sizes([0.1, 0.1, 0.80])
         self.ids['weights_info'].set_title('full weight info')
-    def choose(self, value, key):
+    def choose(self, slider, key):
         '''chooses a page for pagebox with key=string-which box to display in.
         value=int-page number.'''
         lines = self.ids[key].get_lines_number()
-        self.ids[key].set_text(*self.view_model.display_chosen_page(value, key,
-                                                                    lines))
+        #reversing the slider
+        page = int(slider.max) + int(slider.min) - int(slider.value)
+        self.ids[key].set_text(*self.view_model.display_chosen_page(page,
+                                                                    key, lines))
     def previous(self, key):
         '''displays previous page and updates view for pagebox[key=string]'''
         lines = self.ids[key].get_lines_number()
@@ -739,7 +744,7 @@ class GraphBox(BoxLayout):
                     to_plot.append((item.text, item.tuple_list))
         plots = self.view_model.graph_it(to_plot)
         self.update()
-        if plots:
+        if plots[2]:
             #plotter = PlotPopup()
             #plotter.add_list(to_plot)
             #plotter.open()
@@ -790,7 +795,6 @@ class DicePlatform(BoxLayout):
     '''the main box.  the parent_app.'''
     def __init__(self, **kwargs):
         super(DicePlatform, self).__init__(**kwargs)
-        self._table = dt.DiceTable()
         self.direction = 'right'
         self.loop = 'true'
 
