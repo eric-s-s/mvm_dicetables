@@ -1,12 +1,16 @@
 # pylint: disable=missing-docstring, invalid-name, too-many-public-methods
 '''tests for the longintmath.py module'''
 from __future__ import absolute_import
+
+
+
 import os
 import unittest
 import dicetables as dt
 import numpy as np
 
 import file_handler as fh
+
 
 def create_plot_object(table):
     '''converts the table into a PlotObject'''
@@ -44,7 +48,9 @@ class Testfh(unittest.TestCase):
         table.add_die(3, dt.Die(6))
         obj = create_plot_object(table)
         obj['pts'] = 'a'
-        self.assertEqual(fh.check_data(obj), "error: pts not <type 'list'>")
+        #for difference in python2 and 3
+        self.assertIn(fh.check_data(obj), ("error: pts not <type 'list'>",
+                                           "error: pts not <class 'list'>"))
     def test_check_data_incorrect_x_range(self):
         obj = create_plot_object(dt.DiceTable())
         obj['x_range'] = (1.0, 2)
@@ -143,8 +149,13 @@ class Testfh(unittest.TestCase):
         obj2 = create_plot_object(table)
         hist = np.array([obj1, obj2])
         fh.write_history_np(hist)
-        with open('numpy_history.npy', 'r') as f:
-            to_write = f.read()[:-1]
+        #for differences between python2 and 3
+        try:
+            with open('numpy_history.npy', 'r') as f:
+                to_write = f.read()[:-1]
+        except UnicodeDecodeError:
+            with open('numpy_history.npy', 'r', errors='ignore') as f:
+                to_write = f.read()[:-1]
         with open('numpy_history.npy', 'w') as f:
             f.write(to_write)
         msg, hist = fh.read_history_np()

@@ -1,6 +1,13 @@
 '''for sending and retrieving main info to file'''
 
-from cPickle import UnpicklingError
+#numpy python2 uses cPickle and numpy in python3 uses pickle
+from sys import version_info
+if version_info[0] > 2:
+    from pickle import UnpicklingError
+else:
+    from cPickle import UnpicklingError
+
+
 import dicetables as dt
 import numpy as np
 
@@ -24,14 +31,19 @@ def _check_values(plot_obj):
     msg = 'error:'
     x_min, x_max = plot_obj['x_range']
     y_min, y_max = plot_obj['y_range']
-    if (not isinstance(x_min, (int, long)) or
-            not isinstance(x_max, (int, long))):
+    def is_long(num):
+        '''workaround so python2 tests ints and longs and python3 tests ints'''
+        try:
+            return isinstance(num, (int, long))
+        except NameError:
+            return isinstance(num, int)
+
+    if not is_long(x_min) or not is_long(x_max):
         msg += ' incorrect x_range'
     if not isinstance(y_min, float) or not isinstance(y_max, float):
         msg += ' incorrect y_range'
     for freq, val in plot_obj['tuple_list']:
-        if (not isinstance(freq, (int, long)) or
-                not isinstance(val, (int, long))):
+        if not is_long(freq) or not is_long(val):
             msg += ' corrupted "tuple_list"'
     for tuple_ in plot_obj['pts']:
         for val in tuple_:

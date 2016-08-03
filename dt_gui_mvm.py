@@ -1,7 +1,5 @@
 '''model and viewmodel for prototype'''
 
-
-
 from decimal import Decimal
 
 import dicetables as dt
@@ -344,7 +342,7 @@ class StatBox(object):
         val_1 = min(val_max, max(val_min, val_1))
         val_2 = min(val_max, max(val_min, val_2))
 
-        stat_list = range(min(val_1, val_2), max(val_1, val_2) + 1)
+        stat_list = list(range(min(val_1, val_2), max(val_1, val_2) + 1))
         stat_info = self._table.request_stats(stat_list)
         stat_text = ('\n    {stat[0]} occurred {stat[1]} times\n'+
                      '    out of {stat[2]} total combinations\n\n'+
