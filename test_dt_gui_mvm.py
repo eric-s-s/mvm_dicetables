@@ -2,7 +2,6 @@
 # pylint: disable=too-few-public-methods, protected-access, no-member
 '''tests for the longintmath.py module'''
 
-
 from __future__ import absolute_import
 
 import unittest

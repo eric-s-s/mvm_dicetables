@@ -1,5 +1,8 @@
 '''model and viewmodel for prototype'''
 
+from __future__ import absolute_import
+
+
 from decimal import Decimal
 
 import dicetables as dt

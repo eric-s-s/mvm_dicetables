@@ -3,306 +3,248 @@ if version_info[0] > 2:
     import tkinter as tk
 else:
     import Tkinter as tk
-import dicetables.dicestats as ds
-import dicetables.tableinfo as ti
-import pylab
+from functools import partial
+from decimal import Decimal
 from itertools import cycle as itertools_cycle
+
+import dicetables as dt
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from michaellange import ToolTip
+import dt_gui_mvm as mvm
+import file_handler as fh
+
+class NumberInput(tk.Entry):
+    '''a text entry that only allows digits and '+', '-', ' '. will calculate
+    basic arithmatic'''
+    def __init__(self, master, reset=True, *args, **kwargs):
+        '''exactly like entry, but reset decides if it will reset when mouse
+        clicked'''
+        tk.Entry.__init__(self, master, *args, **kwargs)
+        vcmd = (self.register(self.validate), '%S')
+        self.config(validate='key', validatecommand=vcmd)
+        if reset:
+            self.bind('<Button-1>', self.reset)
+    def reset(self, event):
+        '''erases the entry on a mouse click inside box'''
+        self.delete(0, tk.END)
+    def validate(self, text):
+        '''checks to make sure each piece of the text is in acceptable list'''
+        for element in text:
+            if element not in '1234567890+- ':
+                self.bell()
+                return False
+        return True
+    def calculate(self):
+        '''parses text to calculatefinal value'''
+        text = self.get()
+        #make list of numbers and signs
+        elements = []
+        number_str = ''
+        for element in text:
+            if element in '0123456789':
+                number_str += element
+            elif element in ['+', '-']:
+                if number_str:
+                    elements.append(number_str)
+                    number_str = ''
+                elements.append(element)
+        if number_str:
+            elements.append(number_str)
+        #caluculates elements
+        answer = 0
+        sign = 1
+        for element in elements:
+            if element.isdigit():
+                answer += sign * int(element)
+                sign = 1
+            if element == '-':
+                sign *= -1
+        return answer        
+class WeightPopup(object):
+    '''a popup that records weights for a weighted die'''
+    def __init__(self, master, text_list):
+        '''need a list of texts of for "weight for <roll>". creates TopLevel
+        and populates it. MASTER MUST HAVE "record_weights()" METHOD!!!'''
+        self.master = master
+        self.window = tk.Toplevel()
+        self.add_weights(text_list)
+    def add_weights(self, text_list):
+        '''the function that populate the toplevel'''   
+        max_cols = 12
+        self.window.title('makin weights')
+        for index, title in enumerate(text_list):
+            col, row = divmod(index, max_cols)
+            scale = tk.Scale(self.window, from_=0, to=10, label=title,
+                             orient=tk.HORIZONTAL)
+            scale.set(1)
+            scale.grid(column=col, row=row)
+        enter_weights = tk.Button(self.window, command=self.record_weights,
+                                  text='RECORD\nWEIGHTS',
+                                  bg='pale turquoise', fg='red')
+        col, row = divmod(len(text_list), max_cols)
+        enter_weights.grid(column=col, row=row)
+    def record_weights(self):
+        '''records weights as tuples (text, weight_val) and passes to parent's
+        record_weights()'''
+        out = []
+        for widget in self.window.winfo_children():
+            if isinstance(widget, tk.Scale):
+                out.append((widget.cget('label'), widget.get()))
+        self.master.record_weights(out)
+        self.window.destroy()    
+class AddBox(object):
+    '''a view for adding dice.  contains a frame for display'''
+    def __init__(self, master):
+        '''master is an object that has master.frame.'''
+        self.master = master
+        self.frame = tk.Frame(master.frame)
+        
+        self.frame.grid_columnconfigure(0, pad=20)
+        self.frame.grid_columnconfigure(1, pad=20)
+        self.frame.grid_columnconfigure(2, pad=20)
+        self.frame.grid_columnconfigure(3, pad=20)
+
+        self.view_model = mvm.AddBox(mvm.TableManager())
+        
+        self.current = tk.StringVar()
+        self.current.set('\n\n\n\n')
+        tk.Label(self.frame, textvariable=self.current).grid(
+            column=0, row=0, sticky=tk.W+tk.E+tk.S+tk.N, 
+            columnspan=4)
+        
+        tk.Label(self.frame, text='may input\nany size').grid(column=0, row=1)
+        tk.Button(
+            self.frame, text='make\nweights', command=self.add_weights
+            ).grid(column=1, row=1, rowspan=2)
+        tk.Label(self.frame, text='strength').grid(column=2, row=1)
+        tk.Label(self.frame, text='die\nmodifier').grid(column=3, row=1)
+        
+        self.any_size = NumberInput(self.frame, width=10)
+        self.any_size.bind('<Return>', self.assign_size_text)
+        self.any_size.grid(column=0, row=2)
+        
+        multiplier = tk.StringVar()
+        multiplier.set('X1')
+        multiplier.trace('w', partial(self.assign_multiplier, multiplier))
+        strength = tk.OptionMenu(self.frame, multiplier, 
+                                 *['X{}'.format(num) for num in range(1, 11)])
+        strength.grid(column=2, row=2)
+        
+        mod = tk.Scale(self.frame, from_=5, to=-5, command=self.assign_mod)
+        mod.grid(column=3, row=2, rowspan=2)
+        
+        preset = tk.Frame(self.frame)
+        for index, preset_text in enumerate(self.view_model.presets):
+            btn = tk.Button(preset, text=preset_text,
+                            command=partial(self.assign_size_btn, preset_text))
+            row_, col_ = divmod(index, 4)
+            btn.grid(row=row_, column=col_)
+        preset.grid(column=0, row=3, sticky=tk.W+tk.E+tk.S+tk.N, columnspan=3)
+        
+        
+        self.adder = tk.Frame(self.frame)
+        self.adder.grid(column=0, row=4, sticky=tk.W+tk.E+tk.S+tk.N, columnspan=4)
+        
+        self.display_die()
+    
+    def update(self):
+        '''called by main app at dice change'''
+        def make_lines(text):
+            '''changes long text into multi-line text'''
+            line_len = 30
+            num_lines = 5
+            lines = []
+            while len(text) > line_len:
+                new_line = text[:line_len]
+                text = text[line_len:]
+                if '\\' in new_line:
+                    text = new_line[new_line.rfind('\\'):] + text
+                    new_line = new_line[:new_line.rfind('\\')]    
+                lines.append(new_line)
+                
+            lines.append(text)
+            for _ in range(num_lines - len(lines)):
+                lines.append(' ')
+            return '\n'.join(lines)
+        self.current.set(make_lines(self.view_model.display_current()))
+    def assign_size_btn(self, txt):
+        '''assigns the die size and die when a preset btn is pushed'''
+        die_size = int(txt[1:])
+        self.any_size.delete(0, tk.END)
+        self.any_size.insert(tk.END, str(die_size))
+        self.view_model.set_size(die_size)
+        self.display_die()
+    def assign_size_text(self, event):
+        '''asigns the die size and die when text is entered'''
+        top = 200
+        bottom = 2
+        die_size = self.any_size.calculate()
+        die_size = min(top, max(bottom, die_size))
+        self.any_size.delete(0, tk.END)
+        self.any_size.insert(tk.END, str(die_size))
+        self.view_model.set_size(die_size)
+        self.display_die()
+    def assign_mod(self, mod_val):
+        '''assigns a die modifier and new die when slider is moved'''
+        mod = int(mod_val)
+        self.view_model.set_mod(mod)
+        self.display_die()
+    def assign_multiplier(self, multiplier_var, *args):
+        '''assigns a die multiplier and new_die based on spinner's text.'''       
+        multiplier = int(multiplier_var.get()[1:])
+        self.view_model.set_multiplier(multiplier)
+        self.display_die()
+    def display_die(self):
+        '''all changes to size, mod and weight call this function'''
+        for widget in self.adder.winfo_children():
+            widget.destroy()
+        to_add = self.view_model.display_die()
+        tk.Label(self.adder, text=to_add[0]).grid(row=0, column=0, columnspan=2)
+        for col, add_val in enumerate(to_add[1:]):
+            widget = tk.Button(self.adder, text=add_val,
+                               command=partial(self.add, add_val))
+            widget.grid(row=0, column=col + 2)
+    def add_weights(self):      
+        '''sends view_model info to a WeightPopup'''
+        WeightPopup(self, self.view_model.get_weights_text())
+    def record_weights(self, lst):
+        '''passes WeightPopup's infor to the view_model.'''
+        self.view_model.record_weights_text(lst)
+        self.display_die()            
+    def add(self, txt):
+        '''uses btn text and die stored in view_model to add to current table'''
+        self.view_model.add(int(txt))
+        self.master.do_update()
+        
+            
+    
 class App(object):
     def __init__(self, master):
-        self.info_frame = tk.Frame(master)
-        self.info_frame.pack(side=tk.LEFT, fill=tk.BOTH)
-        self.info_frame.config(borderwidth=5, relief=tk.GROOVE)
-
-        self.change_frame = tk.Frame(master)
-        self.change_frame.pack(side=tk.LEFT, fill=tk.BOTH)
-        self.change_frame.config(borderwidth=5, relief=tk.GROOVE)
-
-        self.add_frame = tk.Frame(master)
-        self.add_frame.pack(side=tk.LEFT, fill=tk.BOTH)
-        self.add_frame.config(borderwidth=5, relief=tk.GROOVE)
-
-        self.stat_graph_frame = tk.Frame(master)
-        self.stat_graph_frame.pack(side=tk.LEFT, fill=tk.BOTH)
-        self.stat_graph_frame.config(borderwidth=5, relief=tk.GROOVE)
-
-        self.all_info_frame = tk.Frame(master)
-        self.all_info_frame.pack(side=tk.LEFT, fill=tk.BOTH)
-        self.all_info_frame.config(borderwidth=5, relief=tk.GROOVE)
-
-        self.table = ds.DiceTable()
-        self.use_weights = False
-        self.weight_dictionary = {1:0}
-        self.graph_figure = 1
-        self.weight_widgets = []
-        self.change_widgets = []
-        #infoframe
-        self.quit_button = tk.Button(self.info_frame, text='QUIT', fg='red',
-                                     command=self.info_frame.quit, bg='light yellow')
-        self.quit_button.grid(row=1, sticky=tk.W)
-
-        self.new_button = tk.Button(self.info_frame, text='NEW TABLE', bg='light yellow',
-                                    command=self.restart_table)
-        self.new_button.grid(row=0)
-
-        self.table_string = tk.StringVar()
-        self.table_label = tk.Label(self.info_frame, textvariable=self.table_string)
-        self.table_label.grid(row=2, column=1, sticky=tk.W)
-        self.table_string.set(str(self.table))
-
-        self.stats_string = tk.StringVar()
-        self.stats_label = tk.Label(self.info_frame, textvariable=self.stats_string)
-        self.stats_label.grid(row=1, column=1, sticky=tk.N)
-        self.stats_string.set(self.stats_string_maker(self.table))
-
-        self.weight_text_scrollbar = tk.Scrollbar(self.info_frame)
-        self.weight_text_scrollbar.grid(row=3, column=2, ipady=50)
-        self.weight_text_box = tk.Text(self.info_frame, width=35, height=10,
-                                       yscrollcommand=self.weight_text_scrollbar.set)
-        self.weight_text_box.grid(row=3, column=0, columnspan=2)
-        self.weight_text_scrollbar.config(command=self.weight_text_box.yview)
-        self.weight_text_box.insert(tk.END, 'here is full weight info\n')
-        #change_frame
-
-        self.update_change_frame()
-        self.add_rm_button = tk.Button(self.change_frame, text='add/remove',
-                                       bg='pale turquoise', command=self.add_rm, padx=30)
-        self.add_rm_button.pack()
-
-
-        #add_frame
-        self.num_dice_scale = tk.Scale(self.add_frame, from_=0, to=50, orient=tk.VERTICAL,
-                                       label='how many dice', troughcolor='light yellow')
-        self.num_dice_scale.grid(column=0, row=0, sticky=tk.W)
-
-        self.die_size_scale = tk.Scale(self.add_frame, from_=1, to=100, length=200,
-                                       label='size of dice', troughcolor='light yellow')
-        self.die_size_scale.grid(column=0, row=1, sticky=tk.W, rowspan=2)
-
-        self.die_modifier_scale = tk.Scale(self.add_frame, from_=-5, to=5,
-                                           orient=tk.HORIZONTAL, label='die modifier',
-                                           troughcolor='light yellow')
-        self.die_modifier_scale.grid(column=1, row=0, sticky=tk.N+tk.W)
-
-        self.add_weights_button = tk.Button(self.add_frame, text='weight the die',
-                                            command=self.add_weights, bg='light yellow')
-        self.add_weights_button.grid(column=1, row=1, sticky=tk.N+tk.W)
-
-        self.add_new_button = tk.Button(self.add_frame, text='YES!\nADD IT!',
-                                        fg='red', width=10, height=5,
-                                        bg='pale turquoise', command=self.add_new)
-        self.add_new_button.grid(column=1, row=2)
-
-        self.d2 = tk.Button(self.add_frame, text='D2', command=lambda: self.set_size(2))
-        self.d4 = tk.Button(self.add_frame, text='D4', command=lambda: self.set_size(4))
-        self.d6 = tk.Button(self.add_frame, text='D6', command=lambda: self.set_size(6))
-        self.d8 = tk.Button(self.add_frame, text='D8', command=lambda: self.set_size(8))
-        self.d10 = tk.Button(self.add_frame, text='D10', command=lambda: self.set_size(10))
-        self.d12 = tk.Button(self.add_frame, text='D12', command=lambda: self.set_size(12))
-        self.d20 = tk.Button(self.add_frame, text='D20', command=lambda: self.set_size(20))
-        self.d100 = tk.Button(self.add_frame, text='D100', command=lambda: self.set_size(100))
-
-        self.d2.grid(row=3, column=0)
-        self.d4.grid(row=4, column=0)
-        self.d6.grid(row=5, column=0)
-        self.d8.grid(row=6, column=0)
-        self.d10.grid(row=3, column=1)
-        self.d12.grid(row=4, column=1)
-        self.d20.grid(row=5, column=1)
-        self.d100.grid(row=6, column=1)
-
-        #stat_graph_frame
-        self.graph_button = tk.Button(self.stat_graph_frame, text='overlay\ngraph',
-                                      command=lambda: self.graph_it(new=False),
-                                      bg='light yellow')
-        self.graph_button.grid(row=2, column=0, sticky=tk.S+tk.E)
-        self.graph_clear = tk.Button(self.stat_graph_frame, text='clear', fg='red',
-                                     command=self.clear_graph, bg='light yellow')
-        self.graph_clear.grid(row=2, column=1, sticky=tk.S+tk.W)
-        self.graph_new = tk.Button(self.stat_graph_frame, text='one-off\ngraph',
-                                   command=lambda: self.graph_it(new=True),
-                                   bg='light yellow')
-        self.graph_new.grid(row=2, column=0, sticky=tk.N+tk.W)
-        #self.stats_button = tk.Button(self.stat_graph_frame, text='get\nstats',
-        #                              height=3, width=8,
-        #                              command=self.stats_it, bg='light yellow')
-        #self.stats_button.grid(row=2, column=0, pady=20)
-        self.stats_label1 = tk.Label(self.stat_graph_frame,
-                                     text='assign start/stop\n for stats')
-        self.stats_label1.grid(row=0, column=0, pady=20)
-        self.stats_label2 = tk.Label(self.stat_graph_frame,
-                                     text='click graph button\nfor graph')
-        self.stats_label2.grid(row=0, column=1, pady=20)
-        self.stats_left = tk.Scale(self.stat_graph_frame, label='stats value 1',
-                                    command=self.stats_it_left)
-        self.stats_right = tk.Scale(self.stat_graph_frame, label='stats value 2', 
-                                   command=self.stats_it_right)
-        self.stats_left.grid(row=1, column=0)
-        self.stats_right.grid(row=1, column=1)
-        self.stats_text_box = tk.Text(self.stat_graph_frame, width=50, height=20)
-        self.stats_text_box.grid(row=3, column=0, columnspan=2)
-        #all_info_frame
-        self.all_info_label = tk.Label(self.all_info_frame, fg='white', bg='blue',
-                                       text=('here are all the rolls\n'+
-                                             'and their frequency'))
-        self.all_info_label.pack()
-        self.text_scrollbar = tk.Scrollbar(self.all_info_frame)
-        self.text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.text_box = tk.Text(self.all_info_frame, width=20, height=30,
-                                yscrollcommand=self.text_scrollbar.set)
-        self.text_box.pack()
-        self.text_scrollbar.config(command=self.text_box.yview)
-
-        self.points = itertools_cycle(['o', '<', '>', 'v', 's', 'p', '*', 'h', 'H',
-                                  '+', 'x', 'D', 'd'])
-        self.colors = itertools_cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
-    def graph_it(self, new=False): 
-        pylab.ion()    
-        the_style = '{}-{}'.format(next(self.points), next(self.colors))       
-        if new:
-            figure_obj = pylab.figure(1)
-            pylab.clf()
-        else:
-            figure_obj = pylab.figure(0)
-        x_axis, y_axis = ti.graph_pts(self.table)
-        pylab.ylabel('pct of the total occurences')
-        pylab.xlabel('values')
-        pylab.title('all the combinations for {}'.format(self.table))
-        pylab.plot(x_axis, y_axis, the_style, label=str(self.table))
-        if not new:
-            pylab.legend(loc='best')
-        pylab.pause(0.1)
-        figure_obj.canvas.manager.window.activateWindow()
-        figure_obj.canvas.manager.window.raise_()
-
-    def clear_graph(self):
-        figure_obj = pylab.figure(0)
-        pylab.cla()
-        pylab.pause(0.1)
-        figure_obj.canvas.manager.window.activateWindow()
-        figure_obj.canvas.manager.window.raise_()
-    def stats_it(self, left, right):
-        left = int(left)
-        right = int(right)
-        if left < right:
-            input_lst = list(range(left, right + 1))
-        else:
-            input_lst = list(range(right, left + 1))
-        self.stats_text_box.delete(1.0, tk.END)
-        lst, combos, total, chance, pct = ti.stats(self.table, input_lst)
-        text = ('out of {} total combinations,\n{} occurred {} times\n'
-                .format(total, lst, combos) +
-                'that\'s a 1 in {} chance\nor {} percent'.format(chance, pct))
-        self.stats_text_box.insert(tk.END, text)
-    def stats_it_left(self, left):
-        right = self.stats_right.get()
-        self.stats_it(left, right)
-    def stats_it_right(self, right):
-        left = self.stats_left.get()
-        self.stats_it(left, right)
-    def restart_table(self):
-        self.table = ds.DiceTable()
-        self.mutate_labels()
-        self.update_change_frame()
-    def stats_string_maker(self, table):
-        out = ('the range of numbers is %s-%s\nthe mean is %s\nthe stddev is %s'
-               % (table.values_min(), table.values_max(), round(table.mean(), 4),
-                  table.stddev()))
-        return out
-    def set_size(self, number):
-        self.die_size_scale.set(number)
-    def add_weights(self):
-        self.weight_dictionary = {1:0}
-        self.weight_widgets = []
-        self.weight_window = tk.Toplevel()
-        self.weight_frame = tk.Frame(self.weight_window)
-        self.weight_frame.pack()
-        #self.weight_window.maxsize(height=100, width=1000)
-        self.weight_window.title('makin weights')
-        use_row = 0
-        use_column = 0
-        for roll in range(1, self.die_size_scale.get() + 1):
-            if roll%12 == 1 and roll != 1:
-                use_column += 1
-                use_row = 0
-            scale = tk.Scale(self.weight_frame, from_=0, to=10, orient=tk.HORIZONTAL,
-                             label='weight for' + str(roll))
-            scale.set(1)
-            scale.grid(column=use_column, row=use_row)
-            self.weight_widgets.append(scale)
-            use_row += 1
-        enter_weights = tk.Button(self.weight_frame, command=self.record_weights,
-                                  text='RECORD\nWEIGHTS', height=5, width=10,
-                                  bg='pale turquoise', fg='red')
-        enter_weights.grid()
-    def record_weights(self):
-        count = 1
-        self.use_weights = True
-        for widget in self.weight_widgets:
-            self.weight_dictionary[count] = widget.get()
-            count += 1
-        if sum(self.weight_dictionary.values()) == 0:
-            self.use_weights = False
-        self.weight_window.destroy()
-    def add_new(self):
-        mod = self.die_modifier_scale.get()
-        if self.use_weights:
-            if mod == 0:
-                the_die = ds.WeightedDie(self.weight_dictionary)
-            else:
-                the_die = ds.ModWeightedDie(self.weight_dictionary, mod)
-        else:
-            size = self.die_size_scale.get()
-            if mod == 0:
-                the_die = ds.Die(size)
-            else:
-                the_die = ds.ModDie(size, mod)
-        num_dice = self.num_dice_scale.get()
-        self.table.add_die(num_dice, the_die)
-        self.mutate_labels()
-        self.update_change_frame()
-        self.use_weights = False
-
-    def add_rm(self):
-        for scale, die in self.change_widgets:
-            if scale.get() < 0:
-                self.table.remove_die(abs(scale.get()), die)
-            if scale.get() > 0:
-                self.table.add_die(scale.get(), die)
-        self.mutate_labels()
-        self.update_change_frame()
-
-    def mutate_labels(self):
-
-        self.table_string.set(str(self.table))
-        self.stats_string.set(self.stats_string_maker(self.table))
-        self.weight_text_box.delete(1.0, tk.END)
-        self.weight_text_box.insert(tk.END, ('here is full weight info\n\n' +
-                                             self.table.weights_info()))
-
-        val_min, val_max = self.table.values_range()
-        self.stats_left.config(from_=val_min, to=val_max)
-        self.stats_right.config(from_=val_min, to=val_max)
-
-        self.text_box.delete(1.0, tk.END)
-        self.text_box.insert(tk.END, ti.full_table_string(self.table))
-
-
-
-    def update_change_frame(self):
-        for scale, die in self.change_widgets:
-            scale.destroy()
-        self.change_widgets = []
-        for die, number in self.table.get_list():
-            scale_label = die.multiply_str(number)
-            max_remove = 20
-            max_add = 20
-            if number < max_remove:
-                max_remove = number
-            scale = tk.Scale(self.change_frame, from_=-1 * max_remove, to=max_add,
-                             orient=tk.HORIZONTAL, label=scale_label)
-            scale.pack(fill=tk.X)
-            self.change_widgets.append((scale, die))
-
+        master.minsize(width=666, height=666)
+        self.frame = tk.Frame(master)
+        
+        #self.frame.config(height=50, width=50)
+        self.frame.pack()
+        table = mvm.TableManager()
+        history = mvm.HistoryManager()
+        
+        self._read_hist_msg = history.read_history()
+        
+        change = mvm.ChangeBox(table)
+        add = mvm.AddBox(table)
+        stat = mvm.StatBox(table)
+        graph = mvm.GraphBox(table, history, False)
+        info = mvm.InfoBox(table)
+        
+        self.add_box = AddBox(self)
+        self.add_box.view_model = add
+        self.add_box.frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.add_box.frame.config(borderwidth=5, relief=tk.GROOVE)
+    def do_update(self):
+        self.add_box.update()
 
 
 
