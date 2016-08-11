@@ -1,20 +1,20 @@
 from sys import version_info
 if version_info[0] > 2:
     import tkinter as tk
+    import tkinter.messagebox as msgbox
+    import tkinter.ttk as ttk
 else:
     import Tkinter as tk
+    import tkMessageBox as msgbox
+    import ttk
 from functools import partial
-from decimal import Decimal
-from itertools import cycle as itertools_cycle
+from itertools import cycle
 
-import dicetables as dt
 
-import numpy as np
 import matplotlib.pyplot as plt
 
 from michaellange import ToolTip
 import dt_gui_mvm as mvm
-import file_handler as fh
 
 INTRO_TEXT = ('this is a platform for finding the probability of dice\n' +
               'rolls for any set of dice. For example, the chance of\n' +
@@ -39,6 +39,23 @@ INTRO_TEXT = ('this is a platform for finding the probability of dice\n' +
               'the raw data.')
 
 ###### general tool #######
+def make_lines(text, min_lines=1):
+    '''changes long text into multi-line text'''
+    line_len = 30
+    lines = []
+    while len(text) > line_len:
+        new_line = text[:line_len]
+        text = text[line_len:]
+        if '\\' in new_line:
+            text = new_line[new_line.rfind('\\'):] + text
+            new_line = new_line[:new_line.rfind('\\')]    
+        lines.append(new_line)
+                
+    lines.append(text)
+    for _ in range(min_lines - len(lines)):
+        lines.append(' ')
+    return '\n'.join(lines)
+
 class NumberInput(tk.Entry):
     '''a text entry that only allows digits and '+', '-', ' '. will calculate
     basic arithmatic'''
@@ -176,24 +193,8 @@ class AddBox(object):
     
     def update(self):
         '''called by main app at dice change'''
-        def make_lines(text):
-            '''changes long text into multi-line text'''
-            line_len = 30
-            num_lines = 5
-            lines = []
-            while len(text) > line_len:
-                new_line = text[:line_len]
-                text = text[line_len:]
-                if '\\' in new_line:
-                    text = new_line[new_line.rfind('\\'):] + text
-                    new_line = new_line[:new_line.rfind('\\')]    
-                lines.append(new_line)
-                
-            lines.append(text)
-            for _ in range(num_lines - len(lines)):
-                lines.append(' ')
-            return '\n'.join(lines)
-        self.current.set(make_lines(self.view_model.display_current()))
+        self.current.set(make_lines(self.view_model.display_current(),
+                                    min_lines=5))
     def assign_size_btn(self, txt):
         '''assigns the die size and die when a preset btn is pushed'''
         die_size = int(txt[1:])
@@ -353,36 +354,140 @@ class StatBox(object):
         val_1 = self.left.get()
         val_2 = self.right.get()
         self.display_stats(*self.view_model.display_stats(val_1, val_2))
-
+class HistoryChooser(object):
+    '''makes a popup of choices from master's history.  does the action passed
+    to it.'''
+    def __init__(self, master, partial_action, button_name, 
+                 instructions, add_current=False):
+        '''creates a popup of check boxes.  and a button with text=button_name.
+        when button is pressed, makes a list of all chosen histories and does
+        the partial action on the list. add_current includes the current table
+        in the list.'''
+        self.master = master
+        self.action = partial_action
+        self.choices = []
+        self.window = tk.Toplevel()
+        self.window.title(instructions)
+        self.pack_window(add_current)
+        tk.Button(self.window, text=button_name,
+                  command=self.do_action).pack(side=tk.BOTTOM, fill=tk.X)
+    def pack_window(self, add_current):
+        '''packs the window.  if add_current=True, makes a special box for the
+        current table.'''
+        current, old = self.master.view_model.display()
+        for text, tuples in old:
+            do_it = tk.IntVar()
+            tk.Checkbutton(
+                self.window, variable=do_it, text=make_lines(text),
+                borderwidth=5, relief=tk.GROOVE, anchor=tk.W
+                ).pack(fill=tk.X)
+            self.choices.append((do_it, (text, tuples)))
+        if add_current:
+            do_it = tk.IntVar()
+            btn = tk.Checkbutton(
+                self.window, variable=do_it, borderwidth=10,
+                relief=tk.GROOVE, anchor=tk.W, text=make_lines(current[0])
+                )
+            btn.pack(fill=tk.X)
+            btn.select()
+            self.choices.append((do_it, current))
+    def do_action(self):
+        '''makes a list of all chosen text/tuples and does the action on them'''
+        chosen = []
+        for do_it, to_act in self.choices:
+            if do_it.get():
+                chosen.append(to_act)
+        self.action(chosen)
+        self.window.destroy()
+        
 class GraphMenu(object):
     '''a view for changing dice.  contains a frame for display'''
     def __init__(self, master, view_model):
         '''master is an object that has master.frame.'''
         self.master = master
         self.view_model = view_model
-        
         menubar = tk.Menu(root)
+        self.reloader = tk.Menu(menubar, tearoff=0)
+        
         filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="Reload", command=self.update)
-        filemenu.add_command(label="Save Current", command=self.update)
+        filemenu.add_command(label="Save Current", command=self.save)
+        filemenu.add_cascade(label='Reload File', menu=self.reloader)
+        
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         
-        editmenu = tk.Menu(menubar, tearoff=0)
-        editmenu.add_command(label="Graph Current", command=self.update)
-        editmenu.add_command(label="Graph All", command=self.update)
-        editmenu.add_command(label="Select Graphs", command=self.update)
-        menubar.add_cascade(label="Graph", menu=editmenu)
+        graph_menu = tk.Menu(menubar, tearoff=0)
+        graph_menu.add_command(label="Graph Current", command=self.graph_current)
+        graph_menu.add_command(label="Graph All", command=self.graph_all)
+        graph_menu.add_command(label="Select Graphs", command=self.open_grapher)
+        menubar.add_cascade(label="Graph", menu=graph_menu)
         
         history = tk.Menu(menubar, tearoff=0)
-        history.add_command(label="Clear History", command=self.update)
-        history.add_command(label="Edit History", command=self.update)
+        history.add_command(label="Clear History", command=self.clear_hist)
+        history.add_command(label="Edit History", command=self.edit_hist)
         filemenu.insert_cascade(2, label='Manage History', menu=history)
 
         root.config(menu=menubar)
-    def update(self):
-        pass
+        self.pack_reloader()
+    def pack_reloader(self):
+        self.reloader.delete(0, tk.END)
+        for text, tuple_list in self.view_model.display()[1]:
+            self.reloader.add_command(label=make_lines(text), 
+                                      command=partial(self.reload, text,
+                                                      tuple_list)) 
+    def reload(self, text, tuple_list):
+        self.view_model.reload(text, tuple_list)
+        self.master.do_update()
+    def save(self):
+        current = self.view_model.display()[0]
+        self.view_model.graph_it([current])
+        self.pack_reloader()
+    def graph_current(self):
+        plots = [self.view_model.display()[0]]
+        self.graph(plots)
+    def graph_all(self):
+        current, old = self.view_model.display()
+        old.append(current)
+        self.graph(old)
+    def open_grapher(self):
+        HistoryChooser(self, partial(self.graph), 'Graph\nSelected', 
+                       'Choose what to graph and push the button', add_current=True)
+    def graph(self, plot_lst):
+        plots = self.view_model.graph_it(plot_lst)
+        self.pack_reloader()
+        if plots[2]:
+            #plotter = PlotPopup()
+            #plotter.add_list(to_plot)
+            #plotter.open()
+
+            #for line in plt.figure(1).axes[0].lines:
+            #    if line.get_label() == 'hi':
+            #        print line.get_ydata()
+            #        line.set_zorder(10)
+            plt.figure(1)
+            plt.clf()
+            plt.ion()
+            plt.ylabel('pct of the total occurences')
+            plt.xlabel('values')
+            pt_style = cycle(['o', '<', '>', 'v', 's', 'p', '*',
+                                        'h', 'H', '+', 'x', 'D', 'd'])
+            colors = cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
+            for text, pts in plots[2]:
+                style = '{}-{}'.format(next(pt_style), next(colors))
+                plt.plot(pts[0], pts[1], style, label=text)
+            plt.legend(loc='best')
+            plt.show()
+    def clear_hist(self):
+        self.view_model.clear_all()
+        self.pack_reloader()
+    def clear_selected(self, text_tuples_lst):
+        self.view_model.clear_selected(text_tuples_lst)
+        self.pack_reloader()
+    def edit_hist(self):
+        HistoryChooser(self, partial(self.clear_selected), 'Clear\nSelected', 
+                       'Choose what to clear and push the button')
+    
 class App(object):
     def __init__(self, master):
         #master.minsize(width=666, height=666)
@@ -438,7 +543,7 @@ class App(object):
         self.change_box.update()
         self.stat_box.update()
         self.update_info_box()
-        self.menus.update()
+        #self.menus.update()
     def update_info_box(self):
         info = self.info.display()[3]
         self.info_text.config(state=tk.NORMAL)
