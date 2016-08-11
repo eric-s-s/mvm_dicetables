@@ -1,3 +1,5 @@
+#TODO - check layout in .kv  take care of main()  move around stuff and comment
+
 # pylint: disable=unused-argument, no-name-in-module, import-error
 # pylint: disable=super-on-old-class
 '''requires kivy and kivy garden graph'''
@@ -18,8 +20,6 @@ from kivy.properties import (StringProperty, BooleanProperty,
                              ObjectProperty, ListProperty)
 from kivy.clock import Clock
 import dicetables as dt
-import numpy as np
-import file_handler as fh
 import dt_gui_mvm as mvm
 from kivy.garden.graph import MeshLinePlot
 
@@ -678,8 +678,6 @@ class GraphBox(BoxLayout):
                                              mvm.HistoryManager(), True))
     def __init__(self, **kwargs):
         super(GraphBox, self).__init__(**kwargs)
-        self.plot_history = np.array([], dtype=object)
-        self.plot_current = {'text':''}
         self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
                              size_hint=(0.8, 0.4), title_align='center',
                              title_size=75)
@@ -780,14 +778,8 @@ class GraphBox(BoxLayout):
                     to_clear.append((item.text, item.tuple_list))
         self.view_model.clear_selected(to_clear)
         self.update()
-    def write_history(self):
-        '''reads from 'numpy_history.npy'''
-        fh.write_history_np(self.plot_history)
-    def read_history(self):
-        '''sets graphbox owned history to read file.
-        msg is 'ok', 'ok: empty table', or 'error: <description>' '''
-        msg, self.plot_history = fh.read_history_np()
-        return msg
+    
+    
 
 
 # kv file line 362
