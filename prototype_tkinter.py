@@ -2,11 +2,9 @@ from sys import version_info
 if version_info[0] > 2:
     import tkinter as tk
     import tkinter.messagebox as msgbox
-    import tkinter.ttk as ttk
 else:
     import Tkinter as tk
     import tkMessageBox as msgbox
-    import ttk
 from functools import partial
 from itertools import cycle
 
@@ -16,27 +14,7 @@ import matplotlib.pyplot as plt
 from michaellange import ToolTip
 import dt_gui_mvm as mvm
 
-INTRO_TEXT = ('this is a platform for finding the probability of dice\n' +
-              'rolls for any set of dice. For example, the chance of\n' +
-              'rolling a 4 with 3 six-sided dice is 3 out of 216.\n\n' +
 
-              'Swipe right ===> to get to the add box.  pick a die size,\n' +
-              'and pick a number of dice to add. Add as many kinds of\n' +
-              'dice as you want. You can also add a modifier to the die\n' +
-              '(for example 3-sided die +4), or you can make the die a\n' +
-              'weighted die (a 2-sided die with weights 1:3, 2:8 rolls\n' +
-              'a \'one\'  3 times out of every 11 times).\n\n' +
-
-              'come back to this window to add or subtract\n' +
-              'dice already added.\n\n' +
-
-              'The graph area is for getting a graph of the set of dice.\n' +
-              'It records every set of dice that have been graphed and\n' +
-              'you can reload those dice at any time.\n\n' +
-
-              'The stats area will give you the stats of any set of\n' +
-              'rolls you choose. The last window gives you details of\n' +
-              'the raw data.')
 
 ###### general tool #######
 def make_lines(text, min_lines=1):
@@ -66,44 +44,65 @@ class NumberInput(tk.Entry):
         vcmd = (self.register(self.validate), '%S')
         self.config(validate='key', validatecommand=vcmd)
         if reset:
-            self.bind('<Button-1>', self.reset)
+            self.bind('<Button-1>', self.reset) 
     def reset(self, event):
         '''erases the entry on a mouse click inside box'''
         self.delete(0, tk.END)
     def validate(self, text):
         '''checks to make sure each piece of the text is in acceptable list'''
         for element in text:
-            if element not in '1234567890+- ':
+            if element not in '1234567890+-* ':
                 self.bell()
                 return False
         return True
     def calculate(self):
         '''parses text to calculatefinal value'''
         text = self.get()
-        #make list of numbers and signs
-        elements = []
-        number_str = ''
-        for element in text:
-            if element in '0123456789':
-                number_str += element
-            elif element in ['+', '-']:
-                if number_str:
-                    elements.append(number_str)
-                    number_str = ''
-                elements.append(element)
-        if number_str:
-            elements.append(number_str)
-        #caluculates elements
-        answer = 0
-        sign = 1
-        for element in elements:
-            if element.isdigit():
-                answer += sign * int(element)
-                sign = 1
-            if element == '-':
-                sign *= -1
-        return answer        
-#######  AddBox widgets ########
+        def parse_text(text):
+            '''cuts text to list and removes spaces'''
+            elements = []
+            number_str = ''
+            for element in text:
+                if element in '0123456789':
+                    number_str += element
+                elif element in ['+', '-', '*']:
+                    if number_str:
+                        elements.append(number_str)
+                        number_str = ''
+                    elements.append(element)
+            if number_str:
+                elements.append(number_str)
+            return elements
+        def apply_signs(elements):
+            '''calculates +/- and returns a list of ints and '*'.'''
+            sign=1
+            new=[]
+            for string in elements:
+                if string.isdigit():
+                    new.append(int(string) * sign)
+                    sign = 1
+                elif string == '*':
+                    new.append(string)
+                elif string == '-':
+                    sign *= -1
+            return new   
+        def add_multiply(lst):
+            '''looks for '*' and then multiplies first and returns sum or 0'''
+            front = []
+            back = lst[:]
+            while back:
+                element = back.pop(0)
+                if element == '*':
+                    try:
+                        first = front.pop()
+                        front.append(first * back.pop(0))
+                    except IndexError:
+                        return 0
+                else:
+                    front.append(element)
+            return sum(front)
+        return add_multiply(apply_signs(parse_text(text)))        
+#######  AddBox  and widget########
 class WeightPopup(object):
     '''a popup that records weights for a weighted die'''
     def __init__(self, master, text_list):
@@ -156,12 +155,23 @@ class AddBox(object):
             column=0, row=0, sticky=tk.W+tk.E+tk.S+tk.N, 
             columnspan=4)
         
-        tk.Label(self.frame, text='may input\nany size').grid(column=0, row=1)
-        tk.Button(
-            self.frame, text='make\nweights', command=self.add_weights
-            ).grid(column=1, row=1, rowspan=2)
-        tk.Label(self.frame, text='strength').grid(column=2, row=1)
-        tk.Label(self.frame, text='die\nmodifier').grid(column=3, row=1)
+        any_size = tk.Label(self.frame, text='may input\nany size')
+        any_size.grid(column=0, row=1)
+        ToolTip(any_size, 
+                'type in a die size between 2 and 200 and press enter.', 250)
+        weights = tk.Button(self.frame, text='make\nweights',
+                            command=self.add_weights)
+        weights.grid(column=1, row=1, rowspan=2)
+        weights_text = ('A two-sided die with weights  1:4, 2:1 means that it' +
+                        'rolls a one 4 times as often as a 2')
+        ToolTip(weights, weights_text, 200)
+        strength = tk.Label(self.frame, text='strength')
+        strength.grid(column=2, row=1)
+        strength_text = 'A three-sided die X4 rolls 4, 8, 12 instead of 1, 2, 3'
+        ToolTip(strength, strength_text, 200)
+        mod = tk.Label(self.frame, text='die\nmodifier')
+        mod.grid(column=3, row=1)
+        ToolTip(mod, 'D3+2 rolls 3, 4, 5 instead of 1, 2, 3', 200)
         
         self.any_size = NumberInput(self.frame, width=10)
         self.any_size.bind('<Return>', self.assign_size_text)
@@ -184,10 +194,13 @@ class AddBox(object):
             row_, col_ = divmod(index, 4)
             btn.grid(row=row_, column=col_)
         preset.grid(column=0, row=3, sticky=tk.W+tk.E+tk.S+tk.N, columnspan=3)
-        
-        
+        instruct = tk.Label(self.frame, text=30*'-', bg='PaleTurquoise1')
+        instruct.grid(column=0, row=4, sticky=tk.NSEW, columnspan=4)
+        instructions = ('Use buttons above to create the die you want. ' +
+                        'Then use the "+" buttons below to add it to the table')
+        ToolTip(instruct, instructions, 200)
         self.adder = tk.Frame(self.frame)
-        self.adder.grid(column=0, row=4, sticky=tk.W+tk.E+tk.S+tk.N, columnspan=4)
+        self.adder.grid(column=0, row=5, sticky=tk.NSEW, columnspan=4)
 
         self.display_die()
     
@@ -227,11 +240,12 @@ class AddBox(object):
         for widget in self.adder.winfo_children():
             widget.destroy()
         to_add = self.view_model.display_die()
-        tk.Label(self.adder, text=to_add[0]).grid(row=0, column=0, columnspan=2)
+        tk.Label(self.adder, text= '  ' + to_add[0] + '  ',
+                 bg='MediumPurple2').pack(side=tk.LEFT)
         for col, add_val in enumerate(to_add[1:]):
             widget = tk.Button(self.adder, text=add_val,
                                command=partial(self.add, add_val))
-            widget.grid(row=0, column=col + 2)
+            widget.pack(side=tk.LEFT)
     def add_weights(self):      
         '''sends view_model info to a WeightPopup'''
         WeightPopup(self, self.view_model.get_weights_text())
@@ -250,7 +264,7 @@ class ChangeBox(object):
         '''master is an object that has master.frame.'''
         self.master = master
         self.frame = tk.Frame(master.frame)
-        self.view_model = mvm.ChangeBox(mvm.TableManager())            
+        self.view_model = mvm.ChangeBox(mvm.TableManager())
     def add_rm(self, text, die):
         '''uses die stored in button and btn text to request add or rm'''
         self.view_model.add_rm(int(text), die)
@@ -259,16 +273,20 @@ class ChangeBox(object):
         '''resets current table back to empty and display instructions'''
         self.view_model.reset()
         self.master.do_update()
-        for widget in self.frame.winfo_children():
-            widget.destroy()
-        tk.Label(self.frame, text=INTRO_TEXT).pack()
     def update(self):
         '''updates the current dice after add, rm or clear'''
         button_list = self.view_model.display()
         for widget in self.frame.winfo_children():
             widget.destroy()
-        reset = tk.Button(self.frame, text='reset table', command=self.reset)
-        reset.pack()
+        if button_list:
+            reset = tk.Button(self.frame, text='reset table', command=self.reset)
+            reset.pack()
+        else:
+            label = tk.Label(self.frame, text='EMPTY TABLE')
+            label.pack()
+            text = ('Once you add dice, they will show up here. '+
+                    'Hover over a die to see its details.')
+            ToolTip(label, text, 100)
         for labels, die_ in button_list:
             temp = labels[:]
             labels = []
@@ -288,6 +306,7 @@ class ChangeBox(object):
                     text = text.replace('a weight of ', 'weight: ')
                     ToolTip(label, text, 100)
                     label.pack(side=tk.LEFT, expand=True)
+########## StatBox #########
 class StatBox(object):
     '''a view for changing dice.  contains a frame for display'''
     def __init__(self, master, view_model):
@@ -306,12 +325,19 @@ class StatBox(object):
         info = tk.Label(self.frame, textvariable=self.info_text)
         info.grid(row=0, column=0, columnspan=3, sticky=tk.EW)
         
-        tk.Label(self.frame, text='input\nleft value').grid(row=1, column=0)
+        help_text = ('You may input numbers or any expression like:\n' +
+                     '"1 + -5 *3"\nThen press "Enter".')
+        
+        left = tk.Label(self.frame, text='input\nleft value')
+        left.grid(row=1, column=0)
+        ToolTip(left, help_text, 250)
         left_var = tk.IntVar()
         left_input = NumberInput(self.frame, width=10)
         left_input.grid(row=2, column=0)
         
-        tk.Label(self.frame, text='input\nright value').grid(row=3, column=0)
+        right = tk.Label(self.frame, text='input\nright value')
+        right.grid(row=3, column=0)
+        ToolTip(right, help_text, 250)
         right_var = tk.IntVar()
         right_input = NumberInput(self.frame, width=10)
         right_input.grid(row=4, column=0)
@@ -354,11 +380,13 @@ class StatBox(object):
         val_1 = self.left.get()
         val_2 = self.right.get()
         self.display_stats(*self.view_model.display_stats(val_1, val_2))
+
+#####  GraphBox  #########
+#popup choice for graph/history menus
 class HistoryChooser(object):
     '''makes a popup of choices from master's history.  does the action passed
     to it.'''
-    def __init__(self, master, partial_action, button_name, 
-                 instructions, add_current=False):
+    def __init__(self, master, partial_action, button_name, add_current=False):
         '''creates a popup of check boxes.  and a button with text=button_name.
         when button is pressed, makes a list of all chosen histories and does
         the partial action on the list. add_current includes the current table
@@ -367,10 +395,12 @@ class HistoryChooser(object):
         self.action = partial_action
         self.choices = []
         self.window = tk.Toplevel()
-        self.window.title(instructions)
+        self.window.title('Check boxes and push that button!')
         self.pack_window(add_current)
-        tk.Button(self.window, text=button_name,
-                  command=self.do_action).pack(side=tk.BOTTOM, fill=tk.X)
+        tk.Button(self.window, text=button_name, bg='CadetBlue1',
+                  command=self.do_action).pack(side=tk.LEFT, fill=tk.X)
+        tk.Button(self.window, text='Cancel', bg='RosyBrown1',
+                  command=self.window.destroy).pack(side=tk.RIGHT, fill=tk.X)
     def pack_window(self, add_current):
         '''packs the window.  if add_current=True, makes a special box for the
         current table.'''
@@ -380,12 +410,12 @@ class HistoryChooser(object):
             tk.Checkbutton(
                 self.window, variable=do_it, text=make_lines(text),
                 borderwidth=5, relief=tk.GROOVE, anchor=tk.W
-                ).pack(fill=tk.X)
+                ).pack(side=tk.TOP, fill=tk.X)
             self.choices.append((do_it, (text, tuples)))
-        if add_current:
+        if add_current and current[0]:
             do_it = tk.IntVar()
             btn = tk.Checkbutton(
-                self.window, variable=do_it, borderwidth=10,
+                self.window, variable=do_it, borderwidth=5, bg='pale turquoise',
                 relief=tk.GROOVE, anchor=tk.W, text=make_lines(current[0])
                 )
             btn.pack(fill=tk.X)
@@ -399,7 +429,6 @@ class HistoryChooser(object):
                 chosen.append(to_act)
         self.action(chosen)
         self.window.destroy()
-        
 class GraphMenu(object):
     '''a view for changing dice.  contains a frame for display'''
     def __init__(self, master, view_model):
@@ -431,29 +460,41 @@ class GraphMenu(object):
         root.config(menu=menubar)
         self.pack_reloader()
     def pack_reloader(self):
+        '''populates the "Reload File" cascade'''
         self.reloader.delete(0, tk.END)
         for text, tuple_list in self.view_model.display()[1]:
             self.reloader.add_command(label=make_lines(text), 
                                       command=partial(self.reload, text,
                                                       tuple_list)) 
     def reload(self, text, tuple_list):
+        '''reloads a table and calls update'''
         self.view_model.reload(text, tuple_list)
         self.master.do_update()
     def save(self):
+        '''saves the current table in history'''
         current = self.view_model.display()[0]
         self.view_model.graph_it([current])
         self.pack_reloader()
     def graph_current(self):
+        '''graphs the current table and saves to history'''
         plots = [self.view_model.display()[0]]
         self.graph(plots)
     def graph_all(self):
+        '''graphs entire history'''
         current, old = self.view_model.display()
         old.append(current)
         self.graph(old)
     def open_grapher(self):
-        HistoryChooser(self, partial(self.graph), 'Graph\nSelected', 
-                       'Choose what to graph and push the button', add_current=True)
+        '''called by Select graphs.  makes a popup choice list'''
+        current, old = self.view_model.display()
+        if current[0] or old:
+            HistoryChooser(self, partial(self.graph), 'Graph\nSelected',
+                           add_current=True)
+        else:
+            msgbox.showinfo('Empty', 'No graphs to select')
     def graph(self, plot_lst):
+        '''all graph functions call this base function to graph. plot_list is
+        a list of tuples (text, pts)'''
         plots = self.view_model.graph_it(plot_lst)
         self.pack_reloader()
         if plots[2]:
@@ -478,15 +519,26 @@ class GraphMenu(object):
                 plt.plot(pts[0], pts[1], style, label=text)
             plt.legend(loc='best')
             plt.show()
+        else:
+            msgbox.showinfo('No graphs', 'Your selection\ncontains no graphs')
     def clear_hist(self):
-        self.view_model.clear_all()
-        self.pack_reloader()
+        '''clears the history'''
+        if self.view_model.display()[1]:
+            if msgbox.askquestion('delete', 'Delete All?') == 'yes':
+                self.view_model.clear_all()
+                self.pack_reloader()
     def clear_selected(self, text_tuples_lst):
+        '''gets passed a list of (text, tuple_list).  clears those tables from
+        history'''
         self.view_model.clear_selected(text_tuples_lst)
         self.pack_reloader()
     def edit_hist(self):
-        HistoryChooser(self, partial(self.clear_selected), 'Clear\nSelected', 
-                       'Choose what to clear and push the button')
+        '''calls a popup to get a list for self.clear_selected'''
+        if self.view_model.display()[1]:
+            HistoryChooser(self, partial(self.clear_selected),
+                           'Clear\nSelected')
+        else:
+            msgbox.showinfo('Empty', 'The history is empty')
     
 class App(object):
     def __init__(self, master):
@@ -528,7 +580,7 @@ class App(object):
         info_frame = tk.Frame(self.frame, borderwidth=5, relief=tk.GROOVE)
         info_frame.grid(row=0, column=3, rowspan=2, sticky=tk.NSEW)
         tk.Label(info_frame, text='here are all the rolls\nand their frequency',
-                 fg='white', bg='blue').pack()
+                 fg='white', bg='blue').pack(fill=tk.X)
         text_scrollbar = tk.Scrollbar(info_frame)
         text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.info_text = tk.Text(info_frame, yscrollcommand=text_scrollbar.set,
@@ -556,5 +608,6 @@ if __name__ == '__main__':
     app = App(root)
     app.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
     root.minsize(width=800, height=666)
+    root.title('Dice Tables!')
     root.mainloop()
     root.destroy()
