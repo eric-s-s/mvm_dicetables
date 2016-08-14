@@ -1,8 +1,7 @@
 #:kivy 1.0.9
 #:import Factory kivy.factory.Factory
 
-#tools
-
+#for AddBox
 <NumberSelect>:
     orientation: 'vertical'
     Button:
@@ -29,7 +28,7 @@
             orientation: 'tb-lr'
             size_hint: None, None
 
-
+#for GraphBox
 <PlotPopup>:
     title: 'click the legend button for legend.  click on a label to highlight that plot.'
     FloatLayout:
@@ -72,8 +71,7 @@
                 points: self.pos[0] + self.size[0]/4, self.pos[1] +self.size[1]/4, self.pos[0] + 3*self.size[0]/4, self.pos[1] + self.size[1]/4, self.pos[0] + 3*self.size[0]/4, self.pos[1] + 3*self.size[1]/4, self.pos[0] + self.size[0]/4, self.pos[1] + 3*self.size[1]/4, self.pos[0] + self.size[0]/4, self.pos[1] +self.size[1]/4
                 width: 3 
                 joint: 'miter'
-                cap: 'square'               
-                
+                cap: 'square'
     ScrollView:
         id:scroller
         scroll_timeout: 550
@@ -85,9 +83,78 @@
             size_hint: None, 1
             width: self.texture_size[0]
 
-
-
-
+#for InfoBox
+<PageBox>:
+    orientation:'vertical'
+    Label:
+        id: page_box_title
+        canvas:
+            Color:
+                rgba: 0.8,0,0,0.5
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        size_hint:1, .04
+        halign: 'center'
+        valign: 'middle'
+        text: 'TITLE'
+        text_size:self.size
+    BoxLayout:
+        id:buttons_container
+        orientation: 'horizontal'
+        size_hint: 1, 0.07
+        Button:
+            id:previous
+            size_hint: 0.3, 1
+            text: '<==='
+            text_size:self.size
+            halign: 'right'
+            valign: 'middle'
+            shorten:True
+            shorten_from: 'right'
+            max_lines: 1
+            on_press: root.parent_obj.previous(root.key)
+        Label:
+            id:pages
+            size_hint: 0.4, 1
+            font_size: (lambda:min(int(0.5 * self.height), int(0.25 * self.width)))()
+        Button:
+            id:next
+            size_hint: 0.3, 1
+            text: '===>'
+            text_size:self.size
+            halign: 'left'
+            valign: 'middle'
+            shorten:True
+            shorten_from: 'left'
+            max_lines: 1
+            on_press: root.parent_obj.next(root.key)
+    BoxLayout:
+        id: text_shell
+        orientation: 'horizontal'
+        size_hint: 1, 0.89
+        canvas:
+            Color:
+                rgba: 0.4,0.8,0.8,0.3
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            
+            id:text_container
+            size_hint: 0.8, 1
+            text:''
+            valign: 'top'
+            text_size: self.width, self.height
+        Slider:
+            id:choose
+            orientation:'vertical'
+            min:1
+            max:1
+            value: 1
+            step:1
+            size_hint:0.2, 1
+            on_value:root.parent_obj.choose(self, root.key)
 
 #big boxes
 <ChangeBox>:
@@ -120,9 +187,7 @@
             Label:
                 size_hint: 1, 0.6
                 text: 'type custom die size from 2-200'
-
                 text_size: self.size
-
             NumberInput:
                 id:custom_input
                 size_hint: 1, 0.4
@@ -149,6 +214,8 @@
                     #texture_size: self.size
                 Spinner:
                     size_hint: 1, 0.5
+                    #sync_height: True
+                    #TODO uncomment in version 1.9.2
                     id: multiplier
                     text: 'X1'
                     values: ['X{}'.format(num) for num in range(1, 11)]
@@ -203,114 +270,6 @@
         padding: 10
         spacing: 10
 
-
-
-<PageBox>:
-    orientation:'vertical'
-    Label:
-        id: page_box_title
-        canvas:
-            Color:
-                rgba: 0.8,0,0,0.5
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        size_hint:1, .04
-        halign: 'center'
-        valign: 'middle'
-        text: 'TITLE'
-        text_size:self.size
-    BoxLayout:
-        id:buttons_container
-        orientation: 'horizontal'
-        size_hint: 1, 0.07
-        Button:
-            id:previous
-            size_hint: 0.3, 1
-            text: '<==='
-            text_size:self.size
-            halign: 'right'
-            valign: 'middle'
-            shorten:True
-            shorten_from: 'right'
-            max_lines: 1
-            on_press: root.parent_obj.previous(root.key)
-        Label:
-            id:pages
-            size_hint: 0.4, 1
-            font_size: (lambda:min(int(0.7 * self.height), int(0.35 * self.width)))()
-        Button:
-            id:next
-            size_hint: 0.3, 1
-            text: '===>'
-            text_size:self.size
-            halign: 'left'
-            valign: 'middle'
-            shorten:True
-            shorten_from: 'left'
-            max_lines: 1
-            on_press: root.parent_obj.next(root.key)
-    BoxLayout:
-        id: text_shell
-        orientation: 'horizontal'
-        size_hint: 1, 0.89
-        Label:
-            canvas:
-                Color:
-                    rgba: 0.4,0.8,0.8,0.3
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-            id:text_container
-            size_hint: 0.9, 1
-            text:''
-            text_size: self.width, self.height
-        Slider:
-            id:choose
-            orientation:'vertical'
-            min:1
-            max:1
-            value: 1
-            step:1
-            size_hint:0.1, 1
-            on_value:root.parent_obj.choose(self, root.key)
-<InfoBox>:
-    
-    id: all_rolls_info
-    orientation: 'horizontal'
-    PageBox:
-        id: full_text
-        key: 'full_text'
-        size_hint: 0.5, 1
-        parent_obj: root
-    BoxLayout:    
-        id: info_weights    
-        orientation: 'vertical'
-        size_hint: 0.5, 1
-        spacing:10
-        padding: 5
-        Label:
-            id:general_info
-            size_hint: 1, 0.15
-            text:'test'
-            text_size: self.size
-            halign: 'center'
-        ScrollView:
-            id:table_str_wrapper
-            size_hint: 1, 0.25
-            Label:
-                id:table_str
-                text: 500*'adfgdg\n'
-                size_hint: 1, None
-                text_size: self.width, None
-                height: table_str.texture_size[1]
-                halign: 'center'
-        PageBox:
-            id: weights_info
-            key: 'weights_info'
-            parent_obj: root
-            size_hint: 1, 0.6
-
 <GraphBox>:
     orientation: 'vertical'
     StackLayout:
@@ -348,7 +307,6 @@
             halign: 'center'
             valign: 'middle'
             on_press: root.confirm.open()
-      
 
 <StatBox>:
     BoxLayout:
@@ -381,7 +339,7 @@
                 min:0
                 max:100
                 value:1
-                step:1
+                step: 1
                 size_hint:0.25, 0.82
                 on_value:root.assign_slider_value()
                 pos_hint: {'x': 0.2, 'y': 0.0}
@@ -421,7 +379,41 @@
             size_hint: 1, 0.4
             valign:'top'
 
-
+<InfoBox>:
+    id: all_rolls_info
+    orientation: 'horizontal'
+    PageBox:
+        id: full_text
+        key: 'full_text'
+        size_hint: 0.5, 1
+        parent_obj: root
+    BoxLayout:    
+        id: info_weights    
+        orientation: 'vertical'
+        size_hint: 0.5, 1
+        spacing:10
+        padding: 5
+        Label:
+            id:general_info
+            size_hint: 1, 0.15
+            text:'test'
+            text_size: self.size
+            halign: 'center'
+        ScrollView:
+            id:table_str_wrapper
+            size_hint: 1, 0.25
+            Label:
+                id:table_str
+                text: 500*'adfgdg\n'
+                size_hint: 1, None
+                text_size: self.width, None
+                height: table_str.texture_size[1]
+                halign: 'center'
+        PageBox:
+            id: weights_info
+            key: 'weights_info'
+            parent_obj: root
+            size_hint: 1, 0.6
 
 
 #parent

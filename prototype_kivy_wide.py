@@ -1,11 +1,8 @@
-#TODO - check layout in .kv  take care of main()  move around stuff and comment
-
 # pylint: disable=unused-argument, no-name-in-module, import-error
 # pylint: disable=super-on-old-class
 '''requires kivy and kivy garden graph'''
 from itertools import cycle as itertools_cycle
 
-import matplotlib.pyplot as plt
 
 from kivy.app import App
 from kivy.core.window import Window
@@ -22,7 +19,6 @@ from kivy.clock import Clock
 import dicetables as dt
 import dt_gui_mvm as mvm
 from kivy.garden.graph import MeshLinePlot
-
 
 INTRO_TEXT = ('this is a platform for finding the probability of dice ' +
               'rolls for any set of dice. For example, the chance of ' +
@@ -45,11 +41,8 @@ INTRO_TEXT = ('this is a platform for finding the probability of dice ' +
               'The stats area will give you the stats of any set of ' +
               'rolls you choose. The last window gives you details of ' +
               'the raw data.')
-#tools
-def main():
-    '''gets the current diceplatform so all can call it'''
-    return App.get_running_app().root
 
+###     FlashButton, FlashLabel and NumberInput used in various places     ###
 # kv file line NONE
 class FlashButton(Button):
     '''a button that flashes for delay_time=0.25 sec after pressed, so you know
@@ -61,7 +54,8 @@ class FlashButton(Button):
     def __init__(self, delay_time=0.25, **kwargs):
         super(FlashButton, self).__init__(**kwargs)
         self.delay_time = delay_time
-
+        self._original_color = self.color
+        self._original_background = self.background_color
     def delay(self, function, *args):
         '''delays a function call so that button has time to flash.  use with
         on_press=self.delay(function, function_args)'''
@@ -74,9 +68,8 @@ class FlashButton(Button):
         Clock.schedule_once(self.callback, self.delay_time)
     def callback(self, delta_time):
         '''sets background to normal'''
-        self.color = [1, 1, 1, 1]
-        self.background_color = [1, 1, 1, 1]
-
+        self.color = self._original_color
+        self.background_color = self._original_background
 # kv file line NONE
 class FlashLabel(Button):
     '''a label that flashes for delay_time=0.5 sec when text is added by
@@ -128,8 +121,8 @@ class NumberInput(Button):
                               on_press=self.add_digit))
         pad.add_widget(Button(text='ENT', size_hint=(0.39, 0.25),
                               on_press=self.enter_val))
-        self.num_pad = Popup(title='', content=pad, size_hint=(0.4, 0.5),
-                             pos_hint={'x':0.3, 'y':0})
+        self.num_pad = Popup(title='', content=pad, size_hint=(0.8, 0.5),
+                             pos_hint={'x':0.1, 'y':0})
         self.text = ''
         self.background_color = (0.4, 0.2, 1.0, 0.8)
         self.bind(on_release=self.open_pad)
@@ -179,8 +172,10 @@ class NumberInput(Button):
             #pressing enter can fire event with changed.
             self.changed = not self.changed
 
+
+###############    AddBox classes   ###############
 #for weightpopup
-# kv file line NONE
+# kv file line 5
 class NumberSelect(BoxLayout):
     '''makes a grid of numbers to choose from'''
     def __init__(self, start, stop, **kwargs):
@@ -189,7 +184,7 @@ class NumberSelect(BoxLayout):
         self.the_range = range(start, stop + 1)
     def open_pad(self, *args):
         '''creates a popup pad and opens it'''
-        pad = SelectPad(self, size_hint=(0.4, 0.5), pos_hint={'x':0.3, 'y':0})
+        pad = SelectPad(self, size_hint=(0.8, 0.5), pos_hint={'x':0.1, 'y':0})
         pad.open()
     def get_values(self):
         '''gets info from numberselect for getting weights'''
@@ -198,6 +193,7 @@ class NumberSelect(BoxLayout):
         '''title is string, number is int. sets both internal buttons'''
         self.ids['title'].text = title
         self.ids['number'].text = str(number)
+# for NumerberSelect
 # kv file line NONE
 class SelectPad(Popup):
     '''a popup that is called by NumberSelect.  creates a number pad of number
@@ -208,7 +204,10 @@ class SelectPad(Popup):
         self.parent_btn = parent_btn
 
         self.content = StackLayout(orientation='lr-tb', size_hint=(1, 1))
-        y_hint_ = 0.01* int(100 /(1 + len(self.parent_btn.the_range)//3))
+        rows, remainder = divmod(len(self.parent_btn.the_range), 3)
+        rows += bool(remainder)
+        y_hint_ = 0.01 * (100 // rows)
+        #y_hint_ = 0.01* int(100 /(1 + len(self.parent_btn.the_range)//3))
         for number in self.parent_btn.the_range:
             self.content.add_widget(Button(text=str(number),
                                            size_hint=(0.33, y_hint_),
@@ -219,7 +218,8 @@ class SelectPad(Popup):
         '''assigns button's number to parent'''
         self.parent_btn.ids['number'].text = btn.text
         self.dismiss()
-# kv file line 9
+#for AddBox.add_weights  and AddBox.record_weights
+# kv file line 19
 class WeightsPopup(Popup):
     '''the popup called when weighting a die'''
     def __init__(self, parent_obj, text_list, **kwargs):
@@ -256,7 +256,6 @@ class WeightsPopup(Popup):
             contents.add_widget(Button(on_press=self.record_weights,
                                        text='record\nweights',
                                        size_hint=sz_hint))
-
         for text in text_list:
             weighter = NumberSelect(0, 10, size_hint=sz_hint)
             weighter.set_text(text, 1)
@@ -272,200 +271,7 @@ class WeightsPopup(Popup):
                 out.append(child.get_values())
         self.parent_obj.record_weights(out)
         self.dismiss()
-
-
-# kv file line NONE
-class ObjectButton(Button):
-    '''simply a button with an object attached'''
-    obj = ObjectProperty({})
-# kv file line 22
-class PlotPopup(Popup):
-    '''popup containing the graph'''
-    def __init__(self, **kwargs):
-        super(PlotPopup, self).__init__(**kwargs)
-        self._plot_list = []
-        self.legend = DropDown(dismiss_on_select=False)
-    def add_list(self, new_list):
-        '''main funciton to make a graph'''
-        self._plot_list = new_list[:]
-        self.make_graph()
-        self.make_legend()
-    def make_graph(self):
-        '''makes a graph and plots'''
-        colors = itertools_cycle([
-            [0.2, 1.0, 0, 1], [1, 0, 0.2, 1], [0, 0.2, 1, 1],
-            [0.6, 0, 0.8, 1], [1, 0.4, 0.2, 1], [1, 0.8, 0, 1],
-            [0.8, 1.0, 0.1, 1]
-            ])
-        x_range = []
-        y_range = []
-        y_ticks = [0.05, 0.1, 0.2, 0.5, 1, 5, 10]
-        x_ticks = [1, 2, 5, 10, 20, 30, 50, 100, 200,
-                   300, 500, 1000, 2000, 5000]
-        for plot_obj in self._plot_list:
-            plot_obj['color'] = next(colors)
-            self.ids['graph'].add_plot(MeshLinePlot(points=plot_obj['pts'],
-                                                    color=plot_obj['color']))
-            if x_range:
-                x_range[0] = min(x_range[0], plot_obj['x_min'])
-                x_range[1] = max(x_range[1], plot_obj['x_max'])
-            else:
-                x_range = [plot_obj['x_min'], plot_obj['x_max']]
-            if y_range:
-                y_range[1] = max(y_range[1], plot_obj['y_max'])
-            else:
-                y_range = [0, plot_obj['y_max']]
-        x_tick_num = (x_range[1]-x_range[0])/9.
-        for tick in x_ticks:
-            if x_tick_num < tick:
-                x_tick_num = tick
-                break
-        y_tick_num = (y_range[1]-y_range[0])/20.
-        for tick in y_ticks:
-            if y_tick_num < tick:
-                y_tick_num = tick
-                break
-        x_range[0] -= x_range[0] % x_tick_num
-        current = self.ids['graph'].font_size
-        factor = 1.
-        if x_tick_num > 49:
-            factor = 0.75
-        if x_tick_num > 99:
-            factor = 0.66
-        if x_tick_num > 499:
-            factor = 0.5
-
-        self.ids['graph'].font_size = int(factor * current)
-        self.ids['graph'].x_ticks_major = x_tick_num
-        self.ids['graph'].y_ticks_major = y_tick_num
-        self.ids['graph'].xmin = x_range[0]
-        self.ids['graph'].ymin = -y_tick_num
-        self.ids['graph'].xmax = x_range[1]
-        self.ids['graph'].ymax = y_range[1]
-
-    def make_legend(self):
-        '''created the dropdown menu that's called by 'legend' button'''
-        for plot_obj in self._plot_list:
-
-            btn = ObjectButton(text=plot_obj['text'], size_hint=(None, None),
-                               height=80, obj=plot_obj, color=plot_obj['color'],
-                               valign='middle')
-            btn.bind(on_release=lambda btn: self.legend.select(btn.obj))
-            self.legend.add_widget(btn)
-        self.legend.on_select = self.flash_plot
-        self.ids['legend'].bind(on_release=self.legend.open)
-        self.ids['legend'].bind(on_release=self.resize)
-        self.legend.bind(on_dismiss=self.shrink_button)
-    def shrink_button(self, event):
-        '''make legend button small again after dismiss drop down'''
-        self.ids['legend'].width = self.ids['legend'].texture_size[0]
-    def resize(self, *args):
-        '''on release, resize drop down to fit widest button'''
-        widths = [self.ids['legend'].texture_size[0]]
-        for btn in self.legend.children[0].children:
-            raw_lines = (btn.texture_size[0] + 10.)/main().width
-            single_line_ht = btn.texture_size[1]
-            lines = int(raw_lines)
-            if lines < raw_lines:
-                lines += 1
-            split_at = len(btn.text)/lines
-            if len(btn.text) % lines:
-                split_at += 1
-            #make long btn.text multiline
-            new_text_lst = []
-            copy = btn.text
-            while len(copy) > split_at:
-                new_text_lst.append(copy[:split_at])
-                copy = copy[split_at:]
-            new_text_lst.append(copy)
-            btn.text = '\n'.join(new_text_lst)
-
-            btn.width = min(btn.texture_size[0] + 10, main().width)
-            btn.height = max(self.ids['legend'].height, single_line_ht * lines)
-            widths.append(btn.width)
-        self.ids['legend'].width = max(widths)
-    def flash_plot(self, obj, second_time=False, flash_time=0.5):
-        '''on press, highlight selected graph'''
-        for plot in self.ids['graph'].plots:
-            if plot.points == obj['pts']:
-                temp_color = [1, 1, 1, 1]
-                self.ids['graph'].remove_plot(plot)
-                new_plot = MeshLinePlot(points=obj['pts'], color=temp_color)
-                self.ids['graph'].add_plot(new_plot)
-        if second_time:
-            Clock.schedule_once(
-                lambda dt: self._callback(obj, flash_time, True),
-                flash_time)
-        else:
-            Clock.schedule_once(lambda dt: self._callback(obj, flash_time),
-                                flash_time)
-    def _callback(self, obj, flash_time, second_time=False):
-        '''resets graph to original color'''
-        for plot in self.ids['graph'].plots:
-            if plot.points == obj['pts']:
-                plot.color = obj['color']
-        if not second_time:
-            Clock.schedule_once(lambda dt: self.flash_plot(obj, True),
-                                flash_time)
-
-# kv file line 51
-
-
-
-# kv file line 146
-class ChangeBox(GridLayout):
-    '''displays current dice and allows to change. parent app is what's called
-    for dice actions and info updates. all calls are
-    self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.ChangeBox(mvm.TableManager()))
-    def __init__(self, **kwargs):
-        super(ChangeBox, self).__init__(**kwargs)
-        self.cols = 1
-        self.old_dice = []
-    def add_rm(self, btn):
-        '''uses die stored in button and btn text to request add or rm'''
-        self.view_model.add_rm(int(btn.text), btn.die)
-        self.parent.do_update()
-    def reset(self, btn):
-        '''resets current table back to empty and display instructions'''
-        self.view_model.reset()
-        self.parent.do_update()
-        self.clear_widgets()
-        self.add_widget(Label(text=INTRO_TEXT, text_size=self.size,
-                              valign='top', halign='center'))
-    def update(self):
-        '''updates the current dice after add, rm or clear'''
-        new_dice = []
-        button_list = self.view_model.display()
-        self.clear_widgets()
-        max_height = self.height/10
-        reset = Button(text='reset table', on_press=self.reset,
-                       size_hint=(1, None), height=0.75*max_height)
-        self.add_widget(reset)
-        if button_list:
-            new_height = min((self.height - reset.height) / len(button_list),
-                             max_height)
-        for labels, die_ in button_list:
-            box = BoxLayout(size_hint=(0.8, None), height=new_height,
-                            orientation='horizontal')
-            self.add_widget(box)
-            x_hint = round(1./(len(labels) + 2), 2)
-            for label in labels:
-                if label[0] == '-' or label[0] == '+':
-                    btn = FlashButton(
-                        text=label, size_hint=(x_hint, 1), die=die_,
-                        on_press=lambda btn: btn.delay(self.add_rm, btn)
-                        )
-                    box.add_widget(btn)
-                else:
-                    flash = FlashLabel(text=label, size_hint=(3 * x_hint, 1))
-                    box.add_widget(flash)
-                    new_dice.append(label)
-                    if label not in self.old_dice:
-                        Clock.schedule_once(flash.flash_it, 0.01)
-        self.old_dice = new_dice
-#
-# kv file line 154
+# kv file line 170
 class AddBox(BoxLayout):
     '''box for adding new dice.  parent app is what's called for dice actions
     and info updates. all calls are self.parent_app.request_something(*args).'''
@@ -535,7 +341,347 @@ class AddBox(BoxLayout):
         popup = WeightsPopup(self, self.view_model.get_weights_text())
         popup.open()
 
-# kv file line 77
+###############     ChangeBox has no extra classes      ###############
+# kv file line 160
+class ChangeBox(GridLayout):
+    '''displays current dice and allows to change. parent app is what's called
+    for dice actions and info updates. all calls are
+    self.parent_app.request_something(*args).'''
+    view_model = ObjectProperty(mvm.ChangeBox(mvm.TableManager()))
+    def __init__(self, **kwargs):
+        super(ChangeBox, self).__init__(**kwargs)
+        self.cols = 1
+        self.old_dice = []
+    def add_rm(self, btn):
+        '''uses die stored in button and btn text to request add or rm'''
+        self.view_model.add_rm(int(btn.text), btn.die)
+        self.parent.do_update()
+    def reset(self, btn):
+        '''resets current table back to empty and display instructions'''
+        self.view_model.reset()
+        self.parent.do_update()
+        self.clear_widgets()
+        self.add_widget(Label(text=INTRO_TEXT, text_size=self.size,
+                              valign='top', halign='center'))
+    def update(self):
+        '''updates the current dice after add, rm or clear'''
+        new_dice = []
+        button_list = self.view_model.display()
+        self.clear_widgets()
+        max_height = self.height/10
+        reset = Button(text='reset table', on_press=self.reset,
+                       size_hint=(1, None), height=0.75*max_height)
+        self.add_widget(reset)
+        if button_list:
+            new_height = min((self.height - reset.height) / len(button_list),
+                             max_height)
+        for labels, die_ in button_list:
+            temp = labels[:]
+            labels = []
+            for label in temp:
+                if '50' not in label or 'D' in label:
+                    labels.append(label)
+            box = BoxLayout(size_hint=(0.8, None), height=new_height,
+                            orientation='horizontal')
+            self.add_widget(box)
+            x_hint = round(1./(len(labels) + 2), 2)
+            for label in labels:
+                if label[0] == '-' or label[0] == '+':
+                    btn = FlashButton(
+                        text=label, size_hint=(x_hint, 1), die=die_,
+                        on_press=lambda btn: btn.delay(self.add_rm, btn)
+                        )
+                    box.add_widget(btn)
+                else:
+                    flash = FlashLabel(text=label, size_hint=(3 * x_hint, 1))
+                    box.add_widget(flash)
+                    new_dice.append(label)
+                    if label not in self.old_dice:
+                        Clock.schedule_once(flash.flash_it, 0.01)
+        self.old_dice = new_dice
+
+
+###############     GraphBox classes    ###############
+# for PlotPopup legend
+# kv file line NONE
+class ListButton(Button):
+    '''simply a button with an object attached'''
+    lst = ListProperty([])
+#for GraphBox.graph_it()
+# kv file line 32
+class PlotPopup(Popup):
+    '''popup containing the graph'''
+    def __init__(self, x_range, y_range, plot_list, **kwargs):
+        super(PlotPopup, self).__init__(**kwargs)
+        self._plot_list = plot_list
+        self.x_range = list(x_range)
+        self.y_range = [0, y_range[1]]
+        self.legend = DropDown(dismiss_on_select=False)
+        self._color_list = [
+            [0.2, 1.0, 0, 1], [1, 0, 0.2, 1], [0, 0.2, 1, 1],
+            [0.6, 0, 0.8, 1], [1, 0.4, 0.2, 1], [1, 0.8, 0, 1],
+            [0.8, 1.0, 0.1, 1]
+            ]
+        self.make_graph()
+        self.make_legend()
+    def make_graph(self):
+        '''makes a graph and plots'''
+        colors = itertools_cycle(self._color_list)
+        y_ticks = [0.05, 0.1, 0.2, 0.5, 1, 5, 10]
+        x_ticks = [1, 2, 5, 10, 20, 30, 50, 100, 200,
+                   300, 500, 1000, 2000, 5000]
+        for text_pts in self._plot_list:
+            color_ = next(colors)
+            self.ids['graph'].add_plot(MeshLinePlot(points=text_pts[1],
+                                                    color=color_))
+        #get numbers for graph ticks
+        x_tick_num = (self.x_range[1]-self.x_range[0])/9.
+        for tick in x_ticks:
+            if x_tick_num < tick:
+                x_tick_num = tick
+                break
+        y_tick_num = (self.y_range[1]-self.y_range[0])/20.
+        for tick in y_ticks:
+            if y_tick_num < tick:
+                y_tick_num = tick
+                break
+        self.x_range[0] -= self.x_range[0] % x_tick_num
+        #adjust font size according to tick numbers
+        current = self.ids['graph'].font_size
+        font_factor = 1.
+        if x_tick_num > 49:
+            font_factor = 0.75
+        if x_tick_num > 99:
+            font_factor = 0.66
+        if x_tick_num > 499:
+            font_factor = 0.5
+
+        self.ids['graph'].font_size = int(font_factor * current)
+        self.ids['graph'].x_ticks_major = x_tick_num
+        self.ids['graph'].y_ticks_major = y_tick_num
+        self.ids['graph'].xmin = self.x_range[0]
+        self.ids['graph'].ymin = -y_tick_num
+        self.ids['graph'].xmax = self.x_range[1]
+        self.ids['graph'].ymax = self.y_range[1]
+    def make_legend(self):
+        '''created the dropdown menu that's called by 'legend' button'''
+        colors = itertools_cycle(self._color_list)
+        for text, pts in self._plot_list:
+            btn = ListButton(text=text, size_hint=(None, None),
+                             height=80, lst=pts, color=next(colors),
+                             valign='middle')
+            btn.bind(on_release=self.legend.select)
+            self.legend.add_widget(btn)
+        self.legend.on_select = self.flash_plot
+        self.ids['legend'].bind(on_release=self.legend.open)
+        self.ids['legend'].bind(on_release=self.resize)
+        self.legend.bind(on_dismiss=self.shrink_button)
+    def shrink_button(self, event):
+        '''make legend button small again after dismiss drop down'''
+        self.ids['legend'].width = self.ids['legend'].texture_size[0]
+    def resize(self, *args):
+        '''on release, resize drop down to fit widest button'''
+        widths = [self.ids['legend'].texture_size[0]]
+        for btn in self.legend.children[0].children:
+            #height control for multiline buttons
+            single_line_ht = btn.texture_size[1]
+            lines, remainder = divmod(int(btn.texture_size[0] + 10),
+                                      int(self.parent.width))
+            lines += bool(remainder)
+            #make long btn.text multiline
+            split_at, remainder = divmod(len(btn.text), lines)
+            split_at += bool(remainder)
+            new_text_lst = []
+            copy = btn.text
+            while len(copy) > split_at:
+                new_text_lst.append(copy[:split_at])
+                copy = copy[split_at:]
+            new_text_lst.append(copy)
+            btn.text = '\n'.join(new_text_lst)
+
+            btn.width = min(btn.texture_size[0] + 10, self.parent.width)
+            btn.height = max(self.ids['legend'].height, single_line_ht * lines)
+            widths.append(btn.width)
+        self.ids['legend'].width = max(widths)
+    def flash_plot(self, btn, second_time=False, flash_time=0.5):
+        '''on press, highlight selected graph'''
+        for plot in self.ids['graph'].plots:
+            if plot.points == btn.lst:
+                #temp_color = [1, 1, 1, 1]
+                temp_color = [1-val for val in btn.color]
+                temp_color[3] = 1
+                self.ids['graph'].remove_plot(plot)
+                new_plot = MeshLinePlot(points=btn.lst, color=temp_color)
+                self.ids['graph'].add_plot(new_plot)
+        if second_time:
+            Clock.schedule_once(
+                lambda dt: self._callback(btn, flash_time, second_time=True),
+                flash_time)
+        else:
+            Clock.schedule_once(lambda dt: self._callback(btn, flash_time),
+                                flash_time)
+    def _callback(self, btn, flash_time, second_time=False):
+        '''resets graph to original color'''
+        for plot in self.ids['graph'].plots:
+            if plot.points == btn.lst:
+                plot.color = btn.color
+        if not second_time:
+            Clock.schedule_once(lambda dt: self.flash_plot(btn, True),
+                                flash_time)
+# for displaying history choices to graph
+# kv file line 61
+class PlotCheckBox(BoxLayout):
+    '''a checkbox with associated label and function to return label if box
+    checked'''
+    tuple_list = ObjectProperty([(0, 1)])
+    text = StringProperty('')
+    active = BooleanProperty(False)
+    def __init__(self, reloader=True, **kwargs):
+        super(PlotCheckBox, self).__init__(**kwargs)
+        self.ids['check_box'].bind(active=self._change_active)
+        self.bind(text=self.split_text)
+    def _change_active(self, checkbox, value):
+        '''a helper function to bind checkbox active to main active'''
+        self.active = self.ids['check_box'].active
+    def split_text(self, instance, text, split_char='\\'):
+        '''makes a new two-line display label while preserving original in'''
+        cut_off = 30
+        if len(self.text) <= cut_off:
+            self.ids['label'].text = text
+        else:
+            line_1 = text[:len(self.text)/2]
+            line_2 = text[len(self.text)/2:].replace(split_char, '\n', 1)
+            self.ids['label'].text = (line_1 + line_2)
+# kv file line 273
+class GraphBox(BoxLayout):
+    '''buttons for making graphs.  parent app is what's called for dice actions
+    and info updates. all calls are self.parent_app.request_something(*args).'''
+    view_model = ObjectProperty(mvm.GraphBox(mvm.TableManager(),
+                                             mvm.HistoryManager(), True))
+    def __init__(self, **kwargs):
+        super(GraphBox, self).__init__(**kwargs)
+        self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
+                             size_hint=(0.8, 0.4), title_align='center',
+                             title_size=75)
+        self.confirm.content.add_widget(Button(text='EVERY\nTHING!!!',
+                                               on_press=self.clear_all,
+                                               texture_size=self.size))
+        self.confirm.content.add_widget(Button(text='never\nmind',
+                                               on_press=self.confirm.dismiss))
+
+    def initialize(self):
+        '''called at main app init. workaround for kv file loading after py'''
+        self.ids['graph_space'].add_widget(PlotCheckBox(size_hint=(1, 0.5),
+                                                        parent_obj=self))
+        self.update()
+    def update(self):
+        '''updates the current window to display new graph history and current
+        table to graph'''
+        current, history = self.view_model.display()
+        #sz_hint for 'past graphs' label to take up all the space
+        #base_y make sure other widgets fit
+        rows = len(history) + 3
+        base_y = .99/rows
+        if base_y > 0.1:
+            base_y = 0.1
+        sz_hint = (1, 1 - (rows - 1) * base_y)
+        self.ids['graph_space'].clear_widgets()
+        self.ids['graph_space'].add_widget(Label(text='past graphs',
+                                                 halign='center',
+                                                 size_hint=sz_hint))
+        for text_, tuple_list_ in history:
+            check = PlotCheckBox(size_hint=(0.79, base_y), active=False,
+                                 tuple_list=tuple_list_)
+            reload_ = FlashButton(
+                size_hint=(0.2, base_y), lst=[text_, tuple_list_], max_lines=1,
+                text='reload', valign='middle', halign='center',
+                on_press=lambda btn: btn.delay(self.reload, btn)
+                )
+            self.ids['graph_space'].add_widget(check)
+            self.ids['graph_space'].add_widget(reload_)
+            check.text = text_
+        self.ids['graph_space'].add_widget(Label(text='new table',
+                                                 size_hint=(1, base_y)))
+        check = PlotCheckBox(size_hint=(1, base_y), active=True,
+                             tuple_list=current[1])
+        self.ids['graph_space'].add_widget(check)
+        check.text = current[0]
+        Clock.schedule_once(lambda dt: check.ids['label'].flash_it(), 0.01)
+    def reload(self, btn):
+        '''reloads from history to current table'''
+        self.view_model.reload(btn.lst[0], btn.lst[1])
+        self.parent.do_update()
+    def graph_it(self):
+        '''prepares plot and calls PlotPopup'''
+        to_plot = []
+        for item in self.ids['graph_space'].children[:]:
+            if isinstance(item, PlotCheckBox):
+                if item.active:
+                    to_plot.append((item.text, item.tuple_list))
+        plots = self.view_model.graph_it(to_plot)
+        self.update()
+        if plots[2]:
+            plotter = PlotPopup(*plots)
+            plotter.open()
+    def clear_all(self, btn):
+        '''clear graph history'''
+        self.confirm.dismiss()
+        self.view_model.clear_all()
+        self.update()
+    def clear_selected(self):
+        '''clear selected checked items from graph history'''
+        to_clear = []
+        for item in self.ids['graph_space'].children[1:]:
+            if isinstance(item, PlotCheckBox):
+                if item.active:
+                    to_clear.append((item.text, item.tuple_list))
+        self.view_model.clear_selected(to_clear)
+        self.update()
+
+
+
+###############     StatBox has no extra classes    ###############
+# kv file line 311
+class StatBox(BoxLayout):
+    '''box for getting and displaying stats about rolls. parent app is what's
+    called for dice actions and info updates. all calls are
+    self.parent_app.request_something(*args).'''
+    view_model = ObjectProperty(mvm.StatBox(mvm.TableManager()))
+    def __init__(self, **kwargs):
+        super(StatBox, self).__init__(**kwargs)
+
+    def display_stats(self, stat_text, vals):
+        '''takes a stat text and two values, and displays them.'''
+        self.ids['stat_text'].text = stat_text
+        self.ids['slider_1'].value = vals[0]
+        self.ids['slider_2'].value = vals[1]
+    def update(self):
+        '''called when dice list changes.'''
+        val_1 = int(self.ids['slider_1'].value)
+        val_2 = int(self.ids['slider_2'].value)
+        info_text, stat_text, vals, min_max = self.view_model.display(val_1,
+                                                                      val_2)
+        self.ids['info_text'].text = info_text
+        self.ids['slider_1'].max = self.ids['slider_2'].max = min_max[1]
+        self.ids['slider_1'].min = self.ids['slider_2'].min = min_max[0]
+        self.display_stats(stat_text, vals)
+    def assign_text_value(self):
+        '''called by text_input to assign that value to sliders and
+        show stats'''
+        val_1 = int(self.ids['slider_1_text'].text.replace(',', ''))
+        val_2 = int(self.ids['slider_2_text'].text.replace(',', ''))
+        self.ids['slider_1'].value = val_1
+        self.ids['slider_2'].value = val_2
+    def assign_slider_value(self):
+        '''the main function. displays stats of current slider values.'''
+        val_1 = int(self.ids['slider_1'].value)
+        val_2 = int(self.ids['slider_2'].value)
+        self.display_stats(*self.view_model.display_stats(val_1, val_2))
+
+
+###############     InfoBox classes     ###############
+#for InfoBox displays
+# kv file line 87
 class PageBox(BoxLayout):
     '''a box to display pages and buttons and slider to move through them.
     parent_obj is the top-level owner of the box that it accepts changes from'''
@@ -547,7 +693,6 @@ class PageBox(BoxLayout):
         '''reset font_size = f_size,
         [title ratio, , slider ratio, button ratio, text ratio] = ratios'''
         self.ids['page_box_title'].size_hint_y = ratios[0]
-        #self.ids['choose'].size_hint_y = ratios[1]
         self.ids['buttons_container'].size_hint_y = ratios[1]
         self.ids['text_shell'].size_hint_y = ratios[2]
     def set_title(self, title):
@@ -568,44 +713,7 @@ class PageBox(BoxLayout):
         slider_val = total_pages + 1 - page_num
         self.ids['choose'].max = total_pages
         self.ids['choose'].value = slider_val
-class StatBox(BoxLayout):
-    '''box for getting and displaying stats about rolls. parent app is what's
-    called for dice actions and info updates. all calls are
-    self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.StatBox(mvm.TableManager()))
-    def __init__(self, **kwargs):
-        super(StatBox, self).__init__(**kwargs)
-
-    def display_stats(self, stat_text, vals):
-        '''takes a stat text and two values, and displays them.'''
-        self.ids['stat_text'].text = stat_text
-        self.ids['slider_1'].value = vals[0]
-        self.ids['slider_2'].value = vals[1]
-        self.ids['slider_1_text'].text = '{:,}'.format(vals[0])
-        self.ids['slider_2_text'].text = '{:,}'.format(vals[1])
-
-    def update(self):
-        '''called when dice list changes.'''
-        val_1 = int(self.ids['slider_1'].value)
-        val_2 = int(self.ids['slider_2'].value)
-        info_text, stat_text, vals, min_max = self.view_model.display(val_1,
-                                                                      val_2)
-        self.ids['info_text'].text = info_text
-        self.display_stats(stat_text, vals)
-        self.ids['slider_1'].min = self.ids['slider_2'].min = min_max[0]
-        self.ids['slider_1'].max = self.ids['slider_2'].max = min_max[1]
-    def assign_text_value(self):
-        '''called by text_input to assign that value to sliders and
-        show stats'''
-        val_1 = int(self.ids['slider_1_text'].text.replace(',', ''))
-        val_2 = int(self.ids['slider_2_text'].text.replace(',', ''))
-        self.display_stats(*self.view_model.display_stats(val_1, val_2))
-    def assign_slider_value(self):
-        '''the main function. displays stats of current slider values.'''
-        val_1 = int(self.ids['slider_1'].value)
-        val_2 = int(self.ids['slider_2'].value)
-        self.display_stats(*self.view_model.display_stats(val_1, val_2))
-# kv file line 231
+# kv file line 382
 class InfoBox(BoxLayout):
     '''displays basic info about the die.'''
     view_model = ObjectProperty(mvm.InfoBox(mvm.TableManager()))
@@ -646,157 +754,21 @@ class InfoBox(BoxLayout):
         self.ids['table_str'].text = all_info[1]
         self.ids['weights_info'].set_text(*all_info[2])
         self.ids['full_text'].set_text(*all_info[3])
-# kv file line 253
-class PlotCheckBox(BoxLayout):
-    '''a checkbox with associated label and function to return label if box
-    checked'''
-    #parent_obj = ObjectProperty(BoxLayout)
-    tuple_list = ObjectProperty([(0, 1)])
-    text = StringProperty('')
-    active = BooleanProperty(False)
-    def __init__(self, reloader=True, **kwargs):
-        super(PlotCheckBox, self).__init__(**kwargs)
-        self.ids['check_box'].bind(active=self._change_active)
-        self.bind(text=self.split_text)
-    def _change_active(self, checkbox, value):
-        '''a helper function to bind checkbox active to main active'''
-        self.active = self.ids['check_box'].active
-    def split_text(self, instance, text, split_char='\\'):
-        '''makes a new two-line display label while preserving original in'''
-        cut_off = 30
-        if len(self.text) <= cut_off:
-            self.ids['label'].text = text
-        else:
-            line_1 = text[:len(self.text)/2]
-            line_2 = text[len(self.text)/2:].replace(split_char, '\n', 1)
-            self.ids['label'].text = (line_1 + line_2)
-
-class GraphBox(BoxLayout):
-    '''buttons for making graphs.  parent app is what's called for dice actions
-    and info updates. all calls are self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.GraphBox(mvm.TableManager(),
-                                             mvm.HistoryManager(), True))
-    def __init__(self, **kwargs):
-        super(GraphBox, self).__init__(**kwargs)
-        self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
-                             size_hint=(0.8, 0.4), title_align='center',
-                             title_size=75)
-        self.confirm.content.add_widget(Button(text='EVERY\nTHING!!!',
-                                               on_press=self.clear_all,
-                                               texture_size=self.size))
-        self.confirm.content.add_widget(Button(text='never\nmind',
-                                               on_press=self.confirm.dismiss))
-
-    def initialize(self):
-        '''called at main app init. workaround for kv file loading after py'''
-        self.ids['graph_space'].add_widget(PlotCheckBox(size_hint=(1, 0.5),
-                                                        parent_obj=self))
-        self.update()
-    def update(self):
-        '''updates the current window to display new graph history and current
-        table to graph'''
-        current, history = self.view_model.display()
-        #sz_hint for 'past graphs' label to take up all the space
-        #base_y make sure other widgets fit
-        rows = len(history) + 3
-        base_y = .99/rows
-        if base_y > 0.1:
-            base_y = 0.1
-        sz_hint = (1, 1 - (rows - 1) * base_y)
-
-        self.ids['graph_space'].clear_widgets()
-        self.ids['graph_space'].add_widget(Label(text='past graphs',
-                                                 halign='center',
-                                                 size_hint=sz_hint))
-        for text_, tuple_list_ in history:
-            check = PlotCheckBox(size_hint=(0.8, base_y), active=False,
-                                 tuple_list=tuple_list_)
-            reload_ = FlashButton(
-                size_hint=(0.2, base_y), lst=[text_, tuple_list_], max_lines=1,
-                text='reload', valign='middle', halign='center',
-                on_press=lambda btn: btn.delay(self.reload, btn)
-                )
-            self.ids['graph_space'].add_widget(check)
-            self.ids['graph_space'].add_widget(reload_)
-            check.text = text_
-
-
-
-        self.ids['graph_space'].add_widget(Label(text='new table',
-                                                 size_hint=(1, base_y)))
-        check = PlotCheckBox(size_hint=(1, base_y), active=True,
-                             tuple_list=current[1])
-        self.ids['graph_space'].add_widget(check)
-        check.text = current[0]
-        Clock.schedule_once(lambda dt: check.ids['label'].flash_it(), 0.01)
-    def reload(self, btn):
-        '''reloads from history to current table'''
-        self.view_model.reload(btn.lst[0], btn.lst[1])
-        self.parent.do_update()
-    def graph_it(self):
-        '''prepares plot and calls PlotPopup'''
-        to_plot = []
-        for item in self.ids['graph_space'].children[:]:
-            if isinstance(item, PlotCheckBox):
-                if item.active:
-                    to_plot.append((item.text, item.tuple_list))
-        plots = self.view_model.graph_it(to_plot)
-        self.update()
-        if plots[2]:
-            #plotter = PlotPopup()
-            #plotter.add_list(to_plot)
-            #plotter.open()
-
-            #for line in plt.figure(1).axes[0].lines:
-            #    if line.get_label() == 'hi':
-            #        print line.get_ydata()
-            #        line.set_zorder(10)
-            plt.figure(1)
-            plt.clf()
-            plt.ion()
-            plt.ylabel('pct of the total occurences')
-            plt.xlabel('values')
-            pt_style = itertools_cycle(['o', '<', '>', 'v', 's', 'p', '*',
-                                        'h', 'H', '+', 'x', 'D', 'd'])
-            colors = itertools_cycle(['b', 'g', 'y', 'r', 'c', 'm', 'y', 'k'])
-            for text, pts in plots[2]:
-                style = '{}-{}'.format(next(pt_style), next(colors))
-                plt.plot(pts[0], pts[1], style, label=text)
-            plt.legend(loc='best')
-            plt.show()
-    def clear_all(self, btn):
-        '''clear graph history'''
-        self.confirm.dismiss()
-        self.view_model.clear_all()
-        self.update()
-    def clear_selected(self):
-        '''clear selected checked items from graph history'''
-        to_clear = []
-        for item in self.ids['graph_space'].children[1:]:
-            if isinstance(item, PlotCheckBox):
-                if item.active:
-                    to_clear.append((item.text, item.tuple_list))
-        self.view_model.clear_selected(to_clear)
-        self.update()
-    
     
 
 
-# kv file line 362
+# kv file line 420
 class DicePlatform(BoxLayout):
     '''the main box.  the parent_app.'''
     def __init__(self, **kwargs):
         super(DicePlatform, self).__init__(**kwargs)
-        self.direction = 'right'
-        self.loop = 'true'
-
         table = mvm.TableManager()
         history = mvm.HistoryManager()
         self._read_hist_msg = history.read_history()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
         stat = mvm.StatBox(table)
-        graph = mvm.GraphBox(table, history, True)
+        graph = mvm.GraphBox(table, history, False)
         info = mvm.InfoBox(table)
         self.ids['change_box'].view_model = change
         self.ids['add_box'].view_model = add
@@ -833,9 +805,9 @@ class DiceTableWideApp(App):
     '''the main app'''
     def build(self):
         '''builds app'''
-        bob = DicePlatform()
+        current_app = DicePlatform()
         Window.size = (1500, 700)
-        return bob
+        return current_app
 
     def on_pause(self):
         '''allows pausing on android'''

@@ -96,7 +96,7 @@ def read_history_np():
         history = empty_hist
         msg = 'error: no file'
     except (UnpicklingError, AttributeError, EOFError, ImportError,
-            IndexError):
+            IndexError, ValueError):
         history = empty_hist
         msg = 'error: file corrupted'
     return msg, history

@@ -273,6 +273,9 @@ class AddBox(object):
         self._die = dt.Die(6)
         self.presets = ['D{}'.format(die) for die in
                         (2, 4, 6, 8, 10, 12, 20, 100)]
+    def get_die(self):
+        '''returns the die object'''
+        return self._die
     def display_die(self):
         '''returns a set of add values and str(die) for the bottom display
         [die_sting, '+number' strings]'''

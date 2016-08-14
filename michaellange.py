@@ -63,7 +63,7 @@ class ToolTip:
     
     def configure(self, **opts):
         for key in opts:
-            if self._opts.has_key(key):
+            if key in self._opts.keys():
                 self._opts[key] = opts[key]
             else:
                 KeyError = 'KeyError: Unknown option: "%s"' %key
