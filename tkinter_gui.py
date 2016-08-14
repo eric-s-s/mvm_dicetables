@@ -108,8 +108,8 @@ class NumberInput(tk.Entry):
             return elements
         def apply_signs(elements):
             '''calculates +/- and returns a list of ints and '*'.'''
-            sign=1
-            new=[]
+            sign = 1
+            new = []
             for string in elements:
                 if string.isdigit():
                     new.append(int(string) * sign)
@@ -188,20 +188,20 @@ class AddBox(object):
             column=0, row=0, sticky=tk.W+tk.E+tk.S+tk.N,
             columnspan=4)
 
-        any_size = tk.Label(self.frame, text='may input\nany size')
-        any_size.grid(column=0, row=1)
-        ToolTip(any_size,
+        any_size_lbl = tk.Label(self.frame, text='may input\nany size')
+        any_size_lbl.grid(column=0, row=1)
+        ToolTip(any_size_lbl,
                 'type in a die size between 2 and 200 and press enter.', 250)
         weights = tk.Button(self.frame, text='make\nweights', bg='thistle1',
                             command=self.add_weights)
         weights.grid(column=1, row=1, rowspan=2)
         weights_text = ('A two-sided die with weights 1:4, 2:1 means that it ' +
-                         'rolls a one 4 times as often as a 2')
+                        'rolls a one 4 times as often as a 2')
         ToolTip(weights, weights_text, 200)
-        strength = tk.Label(self.frame, text='strength')
-        strength.grid(column=2, row=1)
+        strength_lbl = tk.Label(self.frame, text='strength')
+        strength_lbl.grid(column=2, row=1)
         strength_text = 'A three-sided die X4 rolls 4, 8, 12 instead of 1, 2, 3'
-        ToolTip(strength, strength_text, 200)
+        ToolTip(strength_lbl, strength_text, 200)
         mod_label = tk.Label(self.frame, text='die\nmodifier')
         mod_label.grid(column=3, row=1)
         ToolTip(mod_label, 'D3+2 rolls 3, 4, 5 instead of 1, 2, 3', 200)
@@ -254,10 +254,10 @@ class AddBox(object):
         '''asigns the die size and die when text is entered'''
         top = 200
         bottom = 2
-        die_size = self.any_size.calculate()
+        die_size = event.widget.calculate()
         die_size = min(top, max(bottom, die_size))
-        self.any_size.delete(0, tk.END)
-        self.any_size.insert(tk.END, str(die_size))
+        event.widget.delete(0, tk.END)
+        event.widget.insert(tk.END, str(die_size))
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_mod(self, mod_val):
@@ -275,11 +275,11 @@ class AddBox(object):
         for widget in self.adder.winfo_children():
             widget.destroy()
         to_add = self.view_model.display_die()
-        the_die = tk.Label(self.adder, text= '  ' + to_add[0] + '  ',
+        the_die = tk.Label(self.adder, text='  ' + to_add[0] + '  ',
                            bg='violet')
         the_die.pack(side=tk.LEFT)
         make_die_tip(the_die, self.view_model.get_die())
-        for col, add_val in enumerate(to_add[1:]):
+        for add_val in to_add[1:]:
             widget = tk.Button(self.adder, text=add_val,
                                command=partial(self.add, add_val))
             widget.pack(side=tk.LEFT)
@@ -382,17 +382,17 @@ class StatBox(object):
             and assigns to IntVar. resets NumberInput'''
             int_var.set(event.widget.calculate())
             event.widget.reset(event)
-            self.assign_slider_value(1)
+            self.assign_slider_value()
         left_input.bind('<Return>', partial(set_reset, left_var))
         right_input.bind('<Return>', partial(set_reset, right_var))
 
         self.left = tk.Scale(self.frame, from_=1, to=0, variable=left_var,
-                             command=self.assign_slider_value,
+                             command=lambda val: self.assign_slider_value(),
                              bg='light yellow', activebackground='light yellow')
         self.left.grid(row=1, column=1, rowspan=4)
         self.right = tk.Scale(self.frame, from_=1, to=0, variable=right_var,
-                             command=self.assign_slider_value,
-                             bg='ivory', activebackground='ivory')
+                              command=lambda val: self.assign_slider_value(),
+                              bg='ivory', activebackground='ivory')
         self.right.grid(row=1, column=2, rowspan=4)
         stat = tk.Label(self.frame, textvariable=self.stat_text)
         stat.grid(row=5, column=0, columnspan=3, sticky=tk.EW)
@@ -403,17 +403,17 @@ class StatBox(object):
         info_text, stat_text, vals, min_max = self.view_model.display(val_1,
                                                                       val_2)
         self.info_text.set(info_text)
-        self.left.config(from_ =min_max[1])
-        self.left.config(to =min_max[0])
-        self.right.config(from_ =min_max[1])
-        self.right.config(to =min_max[0])
+        self.left.config(from_=min_max[1])
+        self.left.config(to=min_max[0])
+        self.right.config(from_=min_max[1])
+        self.right.config(to=min_max[0])
         self.display_stats(stat_text, vals)
     def display_stats(self, stat_text, vals):
         '''takes a stat text and two values, and displays them.'''
         self.stat_text.set(stat_text)
         self.left.set(vals[0])
         self.right.set(vals[1])
-    def assign_slider_value(self, val):
+    def assign_slider_value(self):
         '''the main function. displays stats of current slider values.'''
         val_1 = self.left.get()
         val_2 = self.right.get()
@@ -498,13 +498,13 @@ class GraphMenu(object):
         about = tk.Menu(menubar, tearoff=0)
         def show_help():
             '''opens a help window'''
-            help = tk.Toplevel()
-            text = tk.Text(help, wrap=tk.WORD)
+            help_window = tk.Toplevel()
+            text = tk.Text(help_window, wrap=tk.WORD)
             text.insert(tk.END, HELP_TEXT)
             text.config(state=tk.DISABLED)
             text.pack()
-            tk.Button(help, text='Done', command=help.destroy,
-                             bg='light yellow').pack(side=tk.BOTTOM, fill=tk.X)
+            tk.Button(help_window, text='Done', command=help_window.destroy,
+                      bg='light yellow').pack(side=tk.BOTTOM, fill=tk.X)
         about.add_command(label='Help', command=show_help)
 
         menubar.add_cascade(label="About", menu=about)
