@@ -74,18 +74,18 @@ class Testfh(unittest.TestCase):
     def test_check_data_incorrect_num_in_dice(self):
         obj = create_plot_object(dt.DiceTable())
         obj['dice'] = [(dt.Die(6), 2.0)]
-        self.assertEqual(fh.check_data(obj), 'error: dicelist at (Die(6), 2.0)')
+        self.assertEqual(fh.check_data(obj), 'error: corrupted dice list')
     def test_check_data_incorrect_die_in_dice(self):
         obj = create_plot_object(dt.DiceTable())
         obj['dice'] = [('a', 2.)]
-        self.assertEqual(fh.check_data(obj), 'error: dicelist at (\'a\', 2.0)')
+        self.assertEqual(fh.check_data(obj), 'error: corrupted dice list')
     def test_check_data_reports_multiple_errors(self):
         obj = create_plot_object(dt.DiceTable())
         obj['tuple_list'] = [(10*1000, 2.0)]
         obj['dice'] = [('a', 2.)]
         self.assertEqual(
             fh.check_data(obj),
-            'error: corrupted "tuple_list" dicelist at (\'a\', 2.0)')
+            'error: corrupted "tuple_list" corrupted dice list')
     def test_check_data_all_die_types_pass(self):
         table = dt.DiceTable()
         table.add_die(1, dt.Die(4))
