@@ -127,11 +127,11 @@ class HistoryManager(object):
         self._history = np.array(new_history[:], dtype=object)
     def write_history(self):
         '''overwrites graph history to 'numpy_history.npy' '''
-        fh.write_history_np(self._history)
+        fh.write_history_np_old(self._history)
     def read_history(self):
         '''reads from 'numpy_history.npy' and checks for errors. returns a msg
         that is either "ok" or begins with "error" '''
-        msg, self._history = fh.read_history_np()
+        msg, self._history = fh.read_history_np_old()
         return msg
 
 class GraphBox(object):
