@@ -317,6 +317,62 @@ class Testfh(unittest.TestCase):
         self.assertArrayEqual(obj, np.array([], dtype=object))
 
 
+    def test_read_write_save_data_work_ok_for_normal_case(self):
+        table = dt.DiceTable()
+        table.add_die(1, dt.Die(3))
+        obj1 = create_dice_table_data(table)
+        table.add_die(2, dt.Die(5))
+        obj2 = create_dice_table_data(table)
+        save_data = np.array([obj1, obj2])
+        fh.write_save_data(save_data)
+        msg, new_save_data = fh.read_save_data()
+        self.assertEqual(msg, 'ok')
+        self.assertArrayEqual(save_data, new_save_data)
+    def test_read_save_data_returns_error_and_empty_if_check_hist_has_error(self):
+        fh.write_save_data(np.array([1, 2, 3]))
+        msg, save_data = fh.read_save_data()
+        self.assertEqual(msg, 'error: wrong array type')
+        self.assertArrayEqual(save_data, np.array([], dtype=object))
+    def test_read_save_data_returns_ok_and_empty_if_hist_empty_and_correct_type(self):
+        fh.write_save_data(np.array([], dtype=object))
+        msg, save_data = fh.read_save_data()
+        self.assertEqual(msg, 'ok: no saved data')
+        self.assertArrayEqual(save_data, np.array([], dtype=object))
+    def test_read_save_data_returns_error_and_empty_if_no_file(self):
+        os.remove('save_data.npy')
+        msg, save_data = fh.read_save_data()
+        self.assertEqual(msg, 'error: no file')
+        self.assertArrayEqual(save_data, np.array([], dtype=object))
+
+    def test_read_save_data_returns_error_and_empty_if_corrupted_file(self):
+        table = dt.DiceTable()
+        table.add_die(1, dt.Die(3))
+        obj1 = create_dice_table_data(table)
+        table.add_die(2, dt.Die(5))
+        obj2 = create_dice_table_data(table)
+        save_data_array = np.array([obj1, obj2])
+        fh.write_save_data(save_data_array)
+        #for differences between python2 and 3
+        try:
+            with open('save_data.npy', 'r') as f:
+                to_write = f.read()[:-1]
+        except UnicodeDecodeError:
+            with open('save_data.npy', 'r', errors='ignore') as f:
+                to_write = f.read()[:-1]
+        with open('save_data.npy', 'w') as f:
+            f.write(to_write)
+        msg, new_data = fh.read_save_data()
+        self.assertEqual(msg, 'error: file corrupted')
+        self.assertArrayEqual(new_data, np.array([], dtype=object))
+
+
+
+
+
+
+
+
+
 
 
 
