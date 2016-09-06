@@ -524,8 +524,7 @@ class GraphMenu(object):
         self.master.do_update()
     def save(self):
         '''saves the current table in history'''
-        current = self.view_model.display()[0]
-        self.view_model.graph_it([current])
+        self.view_model.get_and_save_current_table()
         self.pack_reloader()
     def graph_current(self):
         '''graphs the current table and saves to history'''
@@ -592,13 +591,13 @@ class App(object):
         self.frame.rowconfigure(0, weight=1)
         self.frame.pack()
         table = mvm.TableManager()
-        history = mvm.HistoryManager()
+        history = mvm.DataManager()
 
         #reloads history file.  if corrupted, notifies and writes an empty hist
-        hist_msg = history.read_history()
+        hist_msg = history.read_save_data()
         if 'ok' not in hist_msg and hist_msg != 'error: no file':
             msgbox.showinfo('Error', 'Error loading history:\n' + hist_msg)
-            history.write_history()
+            history.write_save_data()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
         stat = mvm.StatBox(table)

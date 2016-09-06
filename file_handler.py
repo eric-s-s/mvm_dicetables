@@ -11,7 +11,6 @@ from itertools import cycle
 import dicetables as dt
 import numpy as np
 
-
 class DiceTableData(object):
     def __init__(self, text, tuple_list, dice_list, graph_axes_data):
         """
@@ -22,6 +21,9 @@ class DiceTableData(object):
         self._tuple_list = tuple_list
         self._dice_list = dice_list
         self._graph_axes = graph_axes_data
+    @classmethod
+    def empty_object(cls):
+        return cls('', [(0, 1)], [], [])
     def get_graph_axes(self):
         return self._graph_axes[:]
     def get_graph_pts(self):
@@ -47,7 +49,7 @@ class DiceTableData(object):
     def __ne__(self, other):
         return not self == other
     def is_empty_object(self):
-        return self == DiceTableData('', [(0, 1)], [], [])
+        return self == DiceTableData.empty_object()
     def match_by_text_and_tuples(self, text, tuple_list):
         return self.get_text() == text and self.get_tuple_list() == tuple_list
     def verify_all_data(self):
@@ -155,95 +157,3 @@ def read_save_data():
         msg = 'error: file corrupted'
     return read_message_and_return_original_or_empty_array(msg, save_data_array)
 
-
-
-
-
-
-
-
-
-
-def _check_dictionary_old(plot_obj):
-    '''checks to make sure that plot object is a dictionary with all appropriate
-    keys. returns 'error: <details>' or 'ok'.'''
-    expected = {'y_range': tuple, 'x_range': tuple, 'text': str,
-                'tuple_list': list, 'pts': list, 'dice': list}
-    if not isinstance(plot_obj, dict):
-        return 'error: not a dict'
-    try:
-        for key, val_type in expected.items():
-            if not isinstance(plot_obj[key], val_type):
-                return 'error: {} not {}'.format(key, val_type)
-        return 'ok'
-    except KeyError:
-        return 'error: missing key'
-
-
-def _check_values_old(plot_obj):
-    '''checks all the values are the right kinds.  returns 'error:<details>'
-    or 'ok'.'''
-    msg = 'error:'
-
-    msg += check_list_for_data_types(plot_obj['x_range'], (int,), ' incorrect x_range')
-    msg += check_list_for_data_types(plot_obj['y_range'], (float,), ' incorrect y_range')
-    msg += check_tuple_list_for_data_types_within_each_tuple(plot_obj['tuple_list'], [(int,), (int,)],
-                                                             ' corrupted "tuple_list"')
-    msg += check_tuple_list_for_data_types_within_each_tuple(plot_obj['pts'], [(int,), (float,)],
-                                                             ' corrupted "tuple_list"')
-    msg += check_tuple_list_for_data_types_within_each_tuple(plot_obj['dice'], [(dt.ProtoDie,), (int,)],
-                                                             ' corrupted dice list')
-
-    if msg == 'error:':
-        msg = 'ok'
-    return msg
-
-
-def check_data_old(plot_obj):
-    '''checks history to see if plot_obj has expected data.  if ok, returns 'ok'
-    else returns a msg starting with 'error:' '''
-    msg = _check_dictionary_old(plot_obj)
-    if msg == 'ok':
-        msg = _check_values_old(plot_obj)
-    return msg
-
-
-def check_history_old(history):
-    '''checks a history(a non-empty iterable containing plot_objects. to make
-    sure it has the correct kind of data. if ok, returns 'ok' else returns a msg
-    starting with 'error' '''
-    for plot_obj in history:
-        msg = check_data_old(plot_obj)
-        if 'error:' in msg:
-            break
-    return msg
-
-
-def write_history_np_old(history):
-    '''takes a numpy array and writes it'''
-    np.save('numpy_history', history)
-
-
-def read_history_np_old():
-    '''tries to find the np file and read it returns a np array and a message'''
-    empty_hist = np.array([], dtype=object)
-    try:
-        history = np.load('numpy_history.npy')
-        if history.size:
-            msg = check_history_old(history)
-            if 'error:' in msg:
-                history = empty_hist
-        else:
-            if history.dtype != np.dtype('O'):
-                msg = 'error: wrong array type'
-                history = empty_hist
-            else:
-                msg = 'ok: no history'
-    except IOError:
-        history = empty_hist
-        msg = 'error: no file'
-    except (UnpicklingError, AttributeError, EOFError, ImportError,
-            IndexError, ValueError):
-        history = empty_hist
-        msg = 'error: file corrupted'
-    return msg, history

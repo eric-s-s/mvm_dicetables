@@ -31,132 +31,126 @@ class TableManager(object):
         '''returns stat info from a list of ints'''
         stat_info = list(dt.stats(self._table, stat_list))
         if stat_info[3] != 'infinity' and stat_info[4] == '0.0':
-            new_pct = str(100/Decimal(stat_info[3])).split('E')
-            stat_info[4] = '{:.3f}e{}'.format(float(new_pct[0]), new_pct[1])
+            tiny_percent = Decimal('1.0e+2')/Decimal(stat_info[3])
+            stat_info[4] = '{:.3e}'.format(tiny_percent)
         return tuple(stat_info)
-    def request_plot_obj(self, use_axes):
+    def request_data_obj(self):
         '''converts the table into a PlotObject'''
-        new_object = {}
-        new_object['text'] = self.request_info('text_one_line')
-        graph_pts = dt.graph_pts(self._table, axes=use_axes, exact=False)
-        new_object['x_range'] = self._table.values_range()
-        if use_axes:
-            y_pts = graph_pts[1]
-        else:
-            y_pts = [pair[1] for pair in graph_pts]
-        new_object['y_range'] = (min(y_pts), max(y_pts))
-        new_object['pts'] = graph_pts
-        new_object['tuple_list'] = self.request_info('tuple_list')
-        new_object['dice'] = self._table.get_list()
-        return new_object
-    def request_reload(self, plot_obj):
-        '''loads plot_obj as the main die table'''
-        self._table = dt.DiceTable()
-        for die, number in plot_obj['dice']:
-            self._table.update_list(number, die)
-        self._table.add(1, plot_obj['tuple_list'])
+        text = self.request_info('text_one_line')
+        graph_data = dt.graph_pts(self._table)
+        tuple_list = self.request_info('tuple_list')
+        dice_list = self.request_info('dice_list')
+        return fh.DiceTableData(text, tuple_list, dice_list, graph_data)
+    def request_reload(self, data_obj):
+        '''loads data_obj as the main die table'''
+        self._table = data_obj.get_dice_table()
     def request_add(self, number, die):
         '''adds dice to table. number is int>=0. die is child of dt.ProtoDie'''
         self._table.add_die(number, die)
     def request_remove(self, number, die):
         '''safely removes dice from table. if too many removed, removes all of
         that kind of dice. number is int>=0. die is child of dt.ProtoDie.'''
-        current = self._table.number_of_dice(die)
-        if number > current:
-            self._table.remove_die(current, die)
-        else:
-            self._table.remove_die(number, die)
+        max_allowed = self._table.number_of_dice(die)
+        self._table.remove_die(min(number, max_allowed), die)
     def request_reset(self):
         '''reset dice table'''
         self._table = dt.DiceTable()
 
-class HistoryManager(object):
+class DataManager(object):
     '''keeps track of plot history and writing'''
     def __init__(self):
-        self._history = np.array([], dtype=object)
+        self._data_array = np.array([], dtype=object)
 
-    def add_plot_obj(self, new_obj):
+    def add_data_obj(self, new_obj):
         '''adds a new plot obj. will not add empty table or duplicates'''
-        def not_empty_obj(obj):
-            '''returns bool. tests if plot_object is empty'''
-            return bool(obj['text']) and obj['tuple_list'] != [(0, 1)]
-        if new_obj not in self._history and not_empty_obj(new_obj):
-            self._history = np.append(self._history, new_obj)
+        if not new_obj.is_empty_object() and new_obj not in self._data_array:
+            self._data_array = np.append(self._data_array, new_obj)
     def get_obj(self, text, tuple_list):
         '''checks to see if any of the objects in history have tuple_list and
         text. returns that object or if not there, returns empty dict.'''
-        new_plot_obj = {}
-        for plot_obj in self._history:
-            if (text == plot_obj['text'] and
-                    tuple_list == plot_obj['tuple_list']):
-                for key, val in plot_obj.items():
-                    if isinstance(val, list):
-                        val = val[:]
-                    new_plot_obj[key] = val
-        return new_plot_obj
+        dummy_data_obj = fh.DiceTableData(text, tuple_list, [], [])
+        for data_obj in self._data_array:
+            if dummy_data_obj == data_obj:
+                return data_obj
+        return fh.DiceTableData('', [(0, 1)], [], [])
+
     def get_labels(self):
         '''returns a list of tuples (plot_obj['text'], plot_obj['tuple_list'])
         for each plot_obj in history'''
         labels = []
-        for obj in self._history:
-            labels.append((obj['text'], obj['tuple_list'][:]))
+        for obj in self._data_array:
+            labels.append((obj.get_text(), obj.get_tuple_list()))
         return labels
-    def get_graphs(self):
+    def get_graphs(self, use_axes):
         '''returns ((x_range of history), (y_range of history),
                     [(graph_text, [graph_values]), -> for each obj in history])
+                    :param use_axes:
         '''
-        out = []
+        list_of_graphs = []
         x_range = y_range = (float('inf'), float('-inf'))
-        for obj in self._history:
-            x_range = (min(x_range[0], obj['x_range'][0]),
-                       max(x_range[1], obj['x_range'][1]))
-            y_range = (min(y_range[0], obj['y_range'][0]),
-                       max(y_range[1], obj['y_range'][1]))
-            out.append((obj['text'], obj['pts'][:]))
-        return (x_range, y_range, out)
+        for obj in self._data_array:
+            x_range = (min(x_range[0], obj.get_x_range()[0]),
+                       max(x_range[1], obj.get_x_range()[1]))
+            y_range = (min(y_range[0], obj.get_y_range()[0]),
+                       max(y_range[1], obj.get_y_range()[1]))
+            if use_axes:
+                graph_data = obj.get_graph_axes()
+            else:
+                graph_data = obj.get_graph_pts()
+            list_of_graphs.append((obj.get_text(), graph_data))
+        return (x_range, y_range, list_of_graphs)
     def clear_all(self):
         '''clear graph history'''
-        self._history = np.array([], dtype=object)
+        self._data_array = np.array([], dtype=object)
     def clear_selected(self, obj_list):
         '''clear listed items from graph history. obj_list is a list of plot
         objects'''
-        new_history = []
-        for obj in self._history:
+        new_data_array = np.array([], dtype=object)
+        for obj in self._data_array:
             if obj not in obj_list:
-                new_history.append(obj)
-        self._history = np.array(new_history[:], dtype=object)
-    def write_history(self):
+                new_data_array = np.append(new_data_array, obj)
+        self._data_array = new_data_array
+    def write_save_data(self):
         '''overwrites graph history to 'numpy_history.npy' '''
-        fh.write_history_np_old(self._history)
-    def read_history(self):
+        fh.write_save_data(self._data_array)
+    def read_save_data(self):
         '''reads from 'numpy_history.npy' and checks for errors. returns a msg
         that is either "ok" or begins with "error" '''
-        msg, self._history = fh.read_history_np_old()
+        msg, self._data_array = fh.read_save_data()
         return msg
 
 class GraphBox(object):
     '''manages graphing and history'''
-    def __init__(self, table_manager, history_manager, use_axes):
-        '''history is a HistoryManager, table_manager is a TableManager.
+    def __init__(self, table_manager, data_manager, use_axes):
+        '''history is a DataManager, table_manager is a TableManager.
         use_axes is a boolean - True if the graph uses axes. False if the graph
         uses pts.'''
-        self._history = history_manager
+        self._data_manager = data_manager
         self._table = table_manager
         self.use_axes = use_axes
-    def graph_it(self, text_tuple_list_lst):
+    def graph_it(self, list_of_texts_and_tuple_lists):
         '''gets passed a list of tuples containing (text, tuple_list).
         text=str of table, tuple_list=[(roll=int, val=int), ...]
         returns ( (x_range), (y_range), [(text, [graphing_values])...] )'''
-        #history manager has built-in measures for duplicates and empties
-        temp = HistoryManager()
-        for text, tuple_list  in text_tuple_list_lst:
-            to_plot = self._history.get_obj(text, tuple_list)
-            if not to_plot:
-                to_plot = self._table.request_plot_obj(self.use_axes)
-                self._history.add_plot_obj(to_plot)
-                self._history.write_history()
-            temp.add_plot_obj(to_plot)
-        return temp.get_graphs()
+        manage_empties_and_duplicates = DataManager()
+        for text, tuple_list in list_of_texts_and_tuple_lists:
+            to_plot = self._data_manager.get_obj(text, tuple_list)
+            if to_plot.is_empty_object():
+                to_plot = self.verify_current_and_retrieve(text, tuple_list)
+            manage_empties_and_duplicates.add_data_obj(to_plot)
+        return manage_empties_and_duplicates.get_graphs(self.use_axes)
+
+    def verify_current_and_retrieve(self, text, tuple_list):
+        if (text, tuple_list) == self.display_current_table():
+            return self.get_and_save_current_table()
+        return fh.DiceTableData.empty_object()
+
+    def get_and_save_current_table(self):
+        data_object = self._table.request_data_obj()
+        self._data_manager.add_data_obj(data_object)
+        self._data_manager.write_save_data()
+        return data_object
+
     def clear_selected(self, text_tuple_list_lst):
         '''gets passed a list of tuples containing 'tuple_list' and txt.
         'tuple_list' is the 'tuple_list' key in a plot object or a
@@ -164,27 +158,26 @@ class GraphBox(object):
         the history'''
         remove = []
         for text, tuple_list in text_tuple_list_lst:
-            to_rm = self._history.get_obj(text, tuple_list)
-            if to_rm:
-                remove.append(to_rm)
-        if remove:
-            self._history.clear_selected(remove)
-            self._history.write_history()
+            remove.append(fh.DiceTableData(text, tuple_list, [], []))
+        self._data_manager.clear_selected(remove)
+        self._data_manager.write_save_data()
     def clear_all(self):
         '''clears the history'''
-        self._history.clear_all()
-        self._history.write_history()
+        self._data_manager.clear_all()
+        self._data_manager.write_save_data()
+    def display_current_table(self):
+        return self._table.request_info('text_one_line'), self._table.request_info('tuple_list')
+    def display_save_data(self):
+        return self._data_manager.get_labels()
     def display(self):
         '''returns a tuple for a display output.
         (table_manager_text_and_tuple_list, history_manager.get_labels())'''
-        current = (self._table.request_info('text_one_line'),
-                   self._table.request_info('tuple_list'))
-        return current, self._history.get_labels()
+        return self.display_current_table(), self.display_save_data()
     def reload(self, text, tuple_list):
         '''takes a text, tuple_list and reloads that to table_manager'''
-        plot_obj = self._history.get_obj(text, tuple_list)
-        if plot_obj:
-            self._table.request_reload(plot_obj)
+        data_obj = self._data_manager.get_obj(text, tuple_list)
+        if not data_obj.is_empty_object():
+            self._table.request_reload(data_obj)
 
 
 def get_add_rm(die, number, enable_remove):
@@ -192,7 +185,7 @@ def get_add_rm(die, number, enable_remove):
     and labels. die is a child of dt.ProtoDie. number is an int>=0.
     enable_remove is a bool. see AddBox.display_die and ChangeBox.display'''
     display = []
-    size_and_max = [(6, 500), (16, 100), (50, 50), (100, 5), (10000, 1)]
+    size_and_max = [(6, 500), (16, 100), (25, 50), (50, 10), (100, 5), (10000, 1)]
     add_choices = [1, 5, 10, 50, 100, 500]
     for size, add_num in size_and_max:
         if die.get_size() <= size:
@@ -241,19 +234,20 @@ def make_die(size, modifier, multiplier, dictionary):
     '''makes the die into a new die. IMPORTANT!! dictionary supercedes size
     so if size is 6 and dictionary is {1:1, 2:4}, then die is made according
     to dictionary.  size-int>0, modifier-int, multiplier-int>=0.'''
-    dice = {'die':dt.Die(size), 'moddie': dt.ModDie(size, modifier)}
-    die_key = 'die'
-    if dictionary:
-        if sum(dictionary.values()) != 0:
-            for value in dictionary.values():
-                if value != 1:
-                    die_key = 'weighteddie'
-                    dice['weighteddie'] = dt.WeightedDie(dictionary)
-                    dice['modweighteddie'] = dt.ModWeightedDie(dictionary,
-                                                               modifier)
-                    break
+    if not dictionary:
+        dictionary = {1: 0}
+    dice = {'Die': dt.Die(size),
+            'ModDie': dt.ModDie(size, modifier),
+            'WeightedDie': dt.WeightedDie(dictionary),
+            'ModWeightedDie': dt.ModWeightedDie(dictionary, modifier)}
+    die_key = 'Die'
+    if sum(dictionary.values()) != 0:
+        for value in dictionary.values():
+            if value != 1:
+                die_key = 'WeightedDie'
+                break
     if modifier:
-        die_key = 'mod' + die_key
+        die_key = 'Mod' + die_key
 
     if multiplier > 1:
         return dt.StrongDie(dice[die_key], multiplier)

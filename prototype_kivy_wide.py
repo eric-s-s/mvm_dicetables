@@ -557,7 +557,7 @@ class GraphBox(BoxLayout):
     '''buttons for making graphs.  parent app is what's called for dice actions
     and info updates. all calls are self.parent_app.request_something(*args).'''
     view_model = ObjectProperty(mvm.GraphBox(mvm.TableManager(),
-                                             mvm.HistoryManager(), True))
+                                             mvm.DataManager(), True))
     def __init__(self, **kwargs):
         super(GraphBox, self).__init__(**kwargs)
         self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
@@ -763,8 +763,8 @@ class DicePlatform(BoxLayout):
     def __init__(self, **kwargs):
         super(DicePlatform, self).__init__(**kwargs)
         table = mvm.TableManager()
-        history = mvm.HistoryManager()
-        self._read_hist_msg = history.read_history()
+        history = mvm.DataManager()
+        self._read_hist_msg = history.read_save_data()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
         stat = mvm.StatBox(table)

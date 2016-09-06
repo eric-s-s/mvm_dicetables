@@ -9,6 +9,7 @@ import unittest
 import numpy as np
 import dicetables as dt
 import dt_gui_mvm as mvm
+import file_handler as fh
 
 class DummyParent(object):
     def __init__(self):
@@ -26,15 +27,15 @@ class DummyParent(object):
 class TestMVM(unittest.TestCase):
     def setUp(self):
         self.TM = mvm.TableManager()
-        self.HM = mvm.HistoryManager()
-        self.GB = mvm.GraphBox(self.TM, self.HM, True)
+        self.DM = mvm.DataManager()
+        self.GB = mvm.GraphBox(self.TM, self.DM, True)
         self.CB = mvm.ChangeBox(self.TM)
         self.SB = mvm.StatBox(self.TM)
         self.AB = mvm.AddBox(self.TM)
         self.IB = mvm.InfoBox(DummyParent())
     def tearDown(self):
         del self.TM
-        del self.HM
+        del self.DM
         del self.GB
         del self.CB
         del self.SB
@@ -69,38 +70,34 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.TM.request_stats([1, 2, 3]),
                          ('1-3', '0.0', '1', 'infinity', '0.0'))
     def test_table_manager_request_stats_tiny_tiny_chance(self):
-        self.TM.request_add(1, dt.WeightedDie({1:1, 2:10**1000}))
+        self.TM.request_add(1, dt.WeightedDie({1: 1, 2: 10**1000}))
         self.assertEqual(self.TM.request_stats([1]),
                          ('1', '1', '1.000e+1000', '1.000e+1000', '1.000e-998'))
     def test_table_manager_request_stats_normal_case(self):
         self.assertEqual(self.TM.request_stats([0]),
                          ('0', '1', '1', '1.000', '100.0'))
-    def test_table_manager_request_plot_obj_use_axes(self):
+    def test_table_manager_request_plot_obj(self):
         self.TM.request_add(1, dt.Die(2))
         self.TM.request_add(1, dt.Die(4))
-        plot_obj = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
-                    'y_range': (12.5, 25.0),
-                    'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
-                    'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
-                    'pts': [(2, 3, 4, 5, 6), (12.5, 25.0, 25.0, 25.0, 12.5)]}
-        self.assertEqual(self.TM.request_plot_obj(True), plot_obj)
-    def test_table_manager_request_plot_obj_not_use_axes(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(1, dt.Die(4))
-        plot_obj = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
-                    'y_range': (12.5, 25.0),
-                    'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
-                    'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
-                    'pts': [(2, 12.5), (3, 25.0), (4, 25.0),
-                            (5, 25.0), (6, 12.5)]}
-        self.assertEqual(self.TM.request_plot_obj(False), plot_obj)
+        expected_object_data = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
+                       'y_range': (12.5, 25.0),
+                       'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
+                       'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
+                       'graph_axes': [(2, 3, 4, 5, 6), (12.5, 25.0, 25.0, 25.0, 12.5)]}
+        data_object = self.TM.request_data_obj()
+        self.assertEqual(data_object.get_text(), expected_object_data['text'])
+        self.assertEqual(data_object.get_x_range(), expected_object_data['x_range'])
+        self.assertEqual(data_object.get_y_range(), expected_object_data['y_range'])
+        self.assertEqual(data_object.get_dice_table().get_list(), expected_object_data['dice'])
+        self.assertEqual(data_object.get_tuple_list(), expected_object_data['tuple_list'])
+        self.assertEqual(data_object.get_graph_axes(), expected_object_data['graph_axes'])
+
     def test_table_manager_request_reload(self):
-        plot_obj = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
-                    'y_range': (12.5, 25.0),
-                    'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
-                    'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
-                    'pts': ([2, 3, 4, 5, 6], [12.5, 25.0, 25.0, 25.0, 12.5])}
-        self.TM.request_reload(plot_obj)
+        table = dt.DiceTable()
+        table.add_die(1, dt.Die(2))
+        table.add_die(1, dt.Die(4))
+        data_obj = fh.DiceTableData('1D2 \\ 1D4', table.frequency_all(), table.get_list(), [])
+        self.TM.request_reload(data_obj)
         self.assertEqual(self.TM.request_info('text'), '1D2\n1D4')
         self.assertEqual(self.TM.request_info('full_text'),
                          '2: 1\n3: 2\n4: 2\n5: 2\n6: 1\n')
@@ -133,138 +130,124 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.TM.request_info('text'), '')
         self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
 
-    def test_history_manager_inits_as_empty(self):
-        self.assertEqual(self.HM._history.size, 0)
-    def test_history_manager_adds_plot_obj(self):
+    def test_data_manager_inits_as_empty(self):
+        self.assertEqual(self.DM._data_array.size, 0)
+    def test_data_manager_adds_plot_obj(self):
         self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.assertEqual(self.HM._history[0], obj)
-    def test_history_manager_wont_add_empty_plot_obj(self):
-        empty_obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(empty_obj)
-        self.assertEqual(self.HM._history.size, 0)
-    def test_history_manager_add_plot_obj__wont_add_duplicates(self):
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.assertEqual(self.DM._data_array[0], obj)
+    def test_data_manager_wont_add_empty_plot_obj(self):
+        empty_obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(empty_obj)
+        self.assertEqual(self.DM._data_array.size, 0)
+    def test_data_manager_add_plot_obj__wont_add_duplicates(self):
         self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.HM.add_plot_obj(obj)
-        self.assertEqual(self.HM._history.size, 1)
-        self.assertEqual(self.HM._history[0], obj)
-    def test_history_manager_get_obj_returns_obj(self):
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.DM.add_data_obj(obj)
+        self.assertEqual(self.DM._data_array.size, 1)
+        self.assertEqual(self.DM._data_array[0], obj)
+    def test_data_manager_get_obj_returns_obj(self):
         self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.assertEqual(self.HM.get_obj('1D2', [(1, 1), (2, 1)]), obj)
-    def test_history_manager_get_obj_returns_empty_if_not_pts(self):
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.assertEqual(self.DM.get_obj('1D2', [(1, 1), (2, 1)]), obj)
+    def test_data_manager_get_obj_returns_empty_if_not_pts(self):
         self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.assertEqual(self.HM.get_obj('1D2', [(2, 1)]), {})
-    def test_history_manager_get_obj_returns_empty_if_not_text(self):
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.assertTrue(self.DM.get_obj('hi', [(1, 1), (2, 1)]).is_empty_object())
+    def test_data_manager_get_obj_returns_empty_if_not_text(self):
         self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.assertEqual(self.HM.get_obj('hi', [(1, 1), (2, 1)]), {})
-    def test_hist_mgr_get_obj__mutate_returned_obj_wont_mutate_tuple_list(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        from_tst = self.HM.get_obj('1D2', [(1, 1), (2, 1)])
-        expected = {'dice': [(dt.Die(2), 1)],
-                    'tuple_list': [(1, 1), (2, 1)],
-                    'pts': [(1, 2), (50.0, 50.0)],
-                    'text': '1D2',
-                    'x_range': (1, 2),
-                    'y_range': (50.0, 50.0)}
-        for key in from_tst.keys():
-            if key in ['dice', 'tuple_list', 'pts']:
-                from_tst[key].append(5)
-            else:
-                from_tst[key] = ''
-        self.assertEqual(self.HM.get_obj('1D2', [(1, 1), (2, 1)]), expected)
-    def test_history_manager_get_labels_returns_empty_for_empty_hist(self):
-        self.assertEqual(self.HM.get_labels(), [])
-    def test_history_manager_get_labels_returns_as_expected(self):
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.assertTrue(self.DM.get_obj('hi', [(1, 1), (2, 1)]).is_empty_object())
+
+    def test_data_manager_get_labels_returns_empty_for_empty_hist(self):
+        self.assertEqual(self.DM.get_labels(), [])
+    def test_data_manager_get_labels_returns_as_expected(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.assertEqual(
-            self.HM.get_labels(),
+            self.DM.get_labels(),
             [('1D1', [(1, 1)]), ('1D1 \\ 1D2', [(2, 1), (3, 1)])])
-    def test_history_manager_clear_all(self):
+    def test_data_manager_clear_all(self):
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.HM.clear_all()
-        self.assertEqual(self.HM.get_labels(), [])
-    def test_history_manager_clear_selected__empty_list_does_nothing(self):
+        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DM.clear_all()
+        self.assertEqual(self.DM.get_labels(), [])
+    def test_data_manager_clear_selected__empty_list_does_nothing(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.HM.clear_selected([])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
-    def test_history_manager_clear_selected__not_present_does_nothing(self):
+        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DM.clear_selected([])
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_data_manager_clear_selected__not_present_does_nothing(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.HM.clear_selected([{'text': 'wrong'}])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
-    def test_history_manager_clear_selected__works_as_expected(self):
+        self.DM.add_data_obj(self.TM.request_data_obj())
+        bad_data_obj = fh.DiceTableData('wrong', [(1, 1)], [], [])
+        self.DM.clear_selected([bad_data_obj])
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_data_manager_clear_selected__works_as_expected(self):
         self.TM.request_add(1, dt.Die(1))
-        obj_1 = self.TM.request_plot_obj(True)
+        obj_1 = self.TM.request_data_obj()
         self.TM.request_add(1, dt.Die(2))
-        obj_2 = self.TM.request_plot_obj(True)
+        obj_2 = self.TM.request_data_obj()
         self.TM.request_add(1, dt.Die(3))
-        obj_3 = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj_1)
-        self.HM.add_plot_obj(obj_2)
-        self.HM.add_plot_obj(obj_3)
-        self.HM.clear_selected([obj_1, obj_3])
-        self.assertEqual(self.HM.get_labels(),
-                         [(obj_2['text'], obj_2['tuple_list'])])
-    def test_history_manager_write_history(self):
+        obj_3 = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj_1)
+        self.DM.add_data_obj(obj_2)
+        self.DM.add_data_obj(obj_3)
+        self.DM.clear_selected([obj_1, obj_3])
+        self.assertEqual(self.DM.get_labels(),
+                         [(obj_2.get_text(), obj_2.get_tuple_list())])
+    def test_data_manager_write_save_data(self):
+        self.TM.request_add(2, dt.Die(1))
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.DM.write_save_data()
+        save_data = np.load('save_data.npy')
+        self.assertEqual(save_data[0], obj)
+        self.assertEqual(save_data.size, 1)
+    def test_data_manager_read_save_data(self):
         self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.HM.write_history()
-        history = np.load('numpy_history.npy')
-        self.assertEqual(history[0], obj)
-        self.assertEqual(history.size, 1)
-    def test_history_manager_read_history(self):
-        self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
-        self.HM.write_history()
-        to_test = mvm.HistoryManager()
-        msg = to_test.read_history()
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
+        self.DM.write_save_data()
+        to_test = mvm.DataManager()
+        msg = to_test.read_save_data()
         self.assertEqual(msg, 'ok')
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
-    def test_history_manager_get_graphs_on_empty_history(self):
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_data_manager_get_graphs_on_empty_save_data(self):
         self.assertEqual(
-            self.HM.get_graphs(),
+            self.DM.get_graphs(True),
             (
                 (float('inf'), float('-inf')),
                 (float('inf'), float('-inf')),
                 []
             )
         )
-    def test_history_manager_get_graphs_x_range(self):
+    def test_data_manager_get_graphs_x_range(self):
         self.TM.request_add(1, dt.ModDie(1, -101))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.ModDie(1, 199))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.assertEqual(self.HM.get_graphs()[0], (-100, 100))
-    def test_history_manager_get_graphs_y_range(self):
+        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.assertEqual(self.DM.get_graphs(True)[0], (-100, 100))
+    def test_data_manager_get_graphs_y_range(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.assertEqual(self.HM.get_graphs()[1], (50.0, 100.0))
-    def test_history_manager_get_graphs(self):
+        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.assertEqual(self.DM.get_graphs(True)[1], (50.0, 100.0))
+    def test_data_manager_get_graphs(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.assertEqual(
-            self.HM.get_graphs(),
+            self.DM.get_graphs(True),
             (
                 (1, 2),
                 (100.0, 100.0),
@@ -283,49 +266,38 @@ class TestMVM(unittest.TestCase):
         )
     def test_graph_box_graph_it_empty_doesnt_mutate_HM(self):
         self.GB.graph_it([])
-        self.assertEqual(self.HM.get_labels(), [])
-    def test_graph_box_graph_it_adds_new_to_history(self):
-        self.assertEqual(self.HM.get_labels(), [])
+        self.assertEqual(self.DM.get_labels(), [])
+    def test_graph_box_graph_it_adds_new_to_save_data(self):
+        self.assertEqual(self.DM.get_labels(), [])
         self.TM.request_add(1, dt.Die(1))
-        self.GB.graph_it([('anything', [(1, 100)])])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
+        self.GB.graph_it([('1D1', [(1, 1)])])
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
     def test_graph_box_graph_it_writes_new_to_file(self):
         #resetting file to empty array
-        self.HM.write_history()
-        history = np.load('numpy_history.npy')
-        self.assertEqual(history.size, 0)
+        self.DM.write_save_data()
+        save_data = np.load('save_data.npy')
+        self.assertEqual(save_data.size, 0)
         self.TM.request_add(1, dt.Die(1))
-        self.GB.graph_it([('anything', [(1, 100)])])
-        history = np.load('numpy_history.npy')
-        self.assertEqual(history.size, 1)
-        self.assertEqual(history[0], self.TM.request_plot_obj(True))
-    def test_graph_box_graph_it_not_add_to_HM_if_thinks_already_there(self):
-        self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_plot_obj(False)
-        not_obj = self.TM.request_plot_obj(True)
-        not_obj['pts'] = [(1, 2, 3), (4, 5, 6)]
-        self.HM.add_plot_obj(not_obj)
-        self.GB.graph_it([(obj['text'], obj['tuple_list'])])
-        self.assertEqual(len(self.HM.get_labels()), 1)
-        self.assertEqual(self.HM._history[0], not_obj)
-    def test_graph_box_graph_it_retrieves_from_HM_not_TM(self):
+        self.GB.graph_it([('1D1', [(1, 1)])])
+        save_data = np.load('save_data.npy')
+        self.assertEqual(save_data.size, 1)
+        self.assertEqual(save_data[0], self.TM.request_data_obj())
+
+    def test_graph_box_graph_it_retrieves_from_DM_not_TM(self):
         self.TM.request_add(1, dt.Die(2))
-        obj_1 = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj_1)
-        #populating HM and TM with different stuff
-        self.TM.request_add(1, dt.Die(3))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
-        self.TM.request_add(1, dt.Die(5))
+        table_manager_object = self.TM.request_data_obj()
+        data_manager_object = fh.DiceTableData('1D2', [(1, 1), (2, 1)], [], [('this came from', ), ('the DM', )])
+        self.DM.add_data_obj(data_manager_object)
+        self.assertEqual(table_manager_object, data_manager_object)
         text_pts = self.GB.graph_it([('1D2', [(1, 1), (2, 1)])])[2]
-        self.assertEqual(text_pts, [('1D2', [(1, 2), (50.0, 50.0)])])
+        self.assertEqual(text_pts, [('1D2', [('this came from', ), ('the DM', )])])
     def test_graph_box_graph_it_retrieves_according_to_use_axes(self):
         self.TM.request_add(1, dt.Die(1))
-        axes_obj = self.TM.request_plot_obj(True)
-        axes_data = (axes_obj['text'], axes_obj['pts'])
-        pts_obj = self.TM.request_plot_obj(False)
-        pts_data = (pts_obj['text'], pts_obj['pts'])
-        pts_GB = mvm.GraphBox(self.TM, mvm.HistoryManager(), False)
-        self.assertNotEqual(axes_obj, pts_obj)
+        data_obj = self.TM.request_data_obj()
+        axes_data = (data_obj.get_text(), data_obj.get_graph_axes())
+        pts_data = (data_obj.get_text(), data_obj.get_graph_pts())
+        pts_GB = mvm.GraphBox(self.TM, mvm.DataManager(), False)
+
         self.assertEqual(
             pts_GB.graph_it([('1D1', [(1, 1)])]),
             ((1, 1), (100.0, 100.0), [pts_data])
@@ -336,73 +308,73 @@ class TestMVM(unittest.TestCase):
         )
     def test_graph_box_clear_selected_does_nothing_with_empty_list(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.GB.clear_selected([])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
     def test_graph_box_clear_selected_does_nothing_with_nonsense_list(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.GB.clear_selected([('dur', [(1, 2)])])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
     def test_graph_box_clear_selected_works_as_expected(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.GB.clear_selected([('2D1', [(2, 1)]),
                                 ('2D1 \\ 1D2', [(3, 1), (4, 1)])])
-        self.assertEqual(self.HM.get_labels(), [('1D1', [(1, 1)])])
-    def test_graph_box_clear_selected_writes_history(self):
+        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_graph_box_clear_selected_writes_save_data(self):
         self.TM.request_add(1, dt.Die(1))
-        expected_for_hist = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(expected_for_hist)
+        expected_for_hist = self.TM.request_data_obj()
+        self.DM.add_data_obj(expected_for_hist)
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.GB.clear_selected([('2D1', [(2, 1)]),
                                 ('2D1 \\ 1D2', [(3, 1), (4, 1)])])
-        history = np.load('numpy_history.npy')
-        self.assertEqual(history.size, 1)
-        self.assertEqual(history[0], expected_for_hist)
-    def test_graph_box_clear_all_works_and_writes_empty_history(self):
+        save_data = np.load('save_data.npy')
+        self.assertEqual(save_data.size, 1)
+        self.assertEqual(save_data[0], expected_for_hist)
+    def test_graph_box_clear_all_works_and_writes_empty_save_data(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.GB.clear_all()
-        self.assertEqual(self.HM.get_labels(), [])
-        self.assertEqual(np.load('numpy_history.npy').size, 0)
+        self.assertEqual(self.DM.get_labels(), [])
+        self.assertEqual(np.load('save_data.npy').size, 0)
     def test_graph_box_display_returns_empty(self):
         self.assertEqual(self.GB.display(), (('', [(0, 1)]), []))
     def test_graph_box_display_returns_as_expected(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(2))
         expected = (('2D1 \\ 1D2', [(3, 1), (4, 1)]),
                     [('1D1', [(1, 1)]), ('2D1', [(2, 1)])])
         self.assertEqual(self.GB.display(), expected)
     def test_graph_box_reload_does_nothing_if_obj_not_in_hist(self):
         self.TM.request_add(1, dt.Die(1))
-        self.HM.add_plot_obj(self.TM.request_plot_obj(True))
+        self.DM.add_data_obj(self.TM.request_data_obj())
         self.TM.request_add(1, dt.Die(1))
-        current_state = self.TM.request_plot_obj(False)
+        current_state = self.TM.request_data_obj()
         self.GB.reload('abc', [(1, 2)])
-        self.assertEqual(self.TM.request_plot_obj(False), current_state)
+        self.assertEqual(self.TM.request_data_obj(), current_state)
     def test_graph_box_reload_works_as_expected(self):
         self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_plot_obj(True)
-        self.HM.add_plot_obj(obj)
+        obj = self.TM.request_data_obj()
+        self.DM.add_data_obj(obj)
         self.TM.request_add(1, dt.Die(2))
 
         self.GB.reload('1D1', [(1, 1)])
-        self.assertEqual(self.TM.request_plot_obj(True), obj)
+        self.assertEqual(self.TM.request_data_obj(), obj)
 
     def test_get_add_rm_box_display_lt_size6(self):
         self.assertEqual(
@@ -410,8 +382,12 @@ class TestMVM(unittest.TestCase):
             ['D5', '+1', '+5', '+10', '+50', '+100', '+500'])
     def test_get_add_rm_box_display_mid_range_size(self):
         self.assertEqual(
+            mvm.get_add_rm(dt.Die(20), 0, False),
+            ['D20', '+1', '+5', '+10', '+50'])
+    def test_get_add_rm_box_display_large_range_size(self):
+        self.assertEqual(
             mvm.get_add_rm(dt.Die(50), 0, False),
-            ['D50', '+1', '+5', '+10', '+50'])
+            ['D50', '+1', '+5', '+10'])
     def test_get_add_rm_box_display_very_large_size(self):
         self.assertEqual(
             mvm.get_add_rm(dt.Die(500), 0, False),
