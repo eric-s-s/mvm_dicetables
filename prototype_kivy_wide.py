@@ -36,7 +36,7 @@ INTRO_TEXT = ('this is a platform for finding the probability of dice ' +
 
               'The graph area is for getting a graph of the set of dice. ' +
               'It records every set of dice that have been graphed and ' +
-              'you can reload those dice at any time.\n\n' +
+              'you can reload_saved_dice_table those dice at any time.\n\n' +
 
               'The stats area will give you the stats of any set of ' +
               'rolls you choose. The last window gives you details of ' +
@@ -594,7 +594,7 @@ class GraphBox(BoxLayout):
                                  tuple_list=tuple_list_)
             reload_ = FlashButton(
                 size_hint=(0.2, base_y), lst=[text_, tuple_list_], max_lines=1,
-                text='reload', valign='middle', halign='center',
+                text='reload_saved_dice_table', valign='middle', halign='center',
                 on_press=lambda btn: btn.delay(self.reload, btn)
                 )
             self.ids['graph_space'].add_widget(check)
@@ -609,7 +609,7 @@ class GraphBox(BoxLayout):
         Clock.schedule_once(lambda dt: check.ids['label'].flash_it(), 0.01)
     def reload(self, btn):
         '''reloads from history to current table'''
-        self.view_model.reload(btn.lst[0], btn.lst[1])
+        self.view_model.reload_saved_dice_table(btn.lst[0], btn.lst[1])
         self.parent.do_update()
     def graph_it(self):
         '''prepares plot and calls PlotPopup'''
@@ -618,7 +618,7 @@ class GraphBox(BoxLayout):
             if isinstance(item, PlotCheckBox):
                 if item.active:
                     to_plot.append((item.text, item.tuple_list))
-        plots = self.view_model.graph_it(to_plot)
+        plots = self.view_model.get_requested_graphs(to_plot)
         self.update()
         if plots[2]:
             plotter = PlotPopup(*plots)

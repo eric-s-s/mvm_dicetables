@@ -32,7 +32,7 @@ HELP_TEXT = ('this is a platform for finding the probability of dice ' +
              'The graph menu is for getting a graph of the set of dice. ' +
              'It records every set of dice that have been graphed in the ' +
              'history. The file menu allows you to edit the saved history' +
-             'and reload those histories at any time.\n\n' +
+             'and reload_saved_dice_table those histories at any time.\n\n' +
 
              'The middle-bottom area will give you the stats of any set of ' +
              'rolls you choose. You can use the sliders to assign roll ' +
@@ -520,7 +520,7 @@ class GraphMenu(object):
                                                       tuple_list))
     def reload(self, text, tuple_list):
         '''reloads a table and calls update'''
-        self.view_model.reload(text, tuple_list)
+        self.view_model.reload_saved_dice_table(text, tuple_list)
         self.master.do_update()
     def save(self):
         '''saves the current table in history'''
@@ -546,7 +546,7 @@ class GraphMenu(object):
     def graph(self, plot_lst):
         '''all graph functions call this base function to graph. plot_list is
         a list of tuples (text, pts)'''
-        plots = self.view_model.graph_it(plot_lst)
+        plots = self.view_model.get_requested_graphs(plot_lst)
         self.pack_reloader()
         if plots[2]:
             plt.figure(1)

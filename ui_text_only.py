@@ -448,5 +448,5 @@ def make_a_list(table):
 if __name__ == '__main__':
     print 'welcome to the dice stats generator.  follow the directions.'
     print 'if you quit, you can get back in by typing main_menu().'
-    print 'if you want to erase your save data, reload the module.'
+    print 'if you want to erase your save data, reload_saved_dice_table the module.'
     main_menu()
