@@ -275,7 +275,7 @@ class WeightsPopup(Popup):
 class AddBox(BoxLayout):
     '''box for adding new dice.  parent app is what's called for dice actions
     and info updates. all calls are self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.AddBox(mvm.TableManager()))
+    view_model = ObjectProperty(mvm.AddBox(mvm.DiceTableManager()))
     def __init__(self, **kwargs):
         super(AddBox, self).__init__(**kwargs)
     def initialize(self):
@@ -347,7 +347,7 @@ class ChangeBox(GridLayout):
     '''displays current dice and allows to change. parent app is what's called
     for dice actions and info updates. all calls are
     self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.ChangeBox(mvm.TableManager()))
+    view_model = ObjectProperty(mvm.ChangeBox(mvm.DiceTableManager()))
     def __init__(self, **kwargs):
         super(ChangeBox, self).__init__(**kwargs)
         self.cols = 1
@@ -556,8 +556,8 @@ class PlotCheckBox(BoxLayout):
 class GraphBox(BoxLayout):
     '''buttons for making graphs.  parent app is what's called for dice actions
     and info updates. all calls are self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.GraphBox(mvm.TableManager(),
-                                             mvm.DataManager(), True))
+    view_model = ObjectProperty(mvm.GraphBox(mvm.DiceTableManager(),
+                                             mvm.SavedTablesManager(), True))
     def __init__(self, **kwargs):
         super(GraphBox, self).__init__(**kwargs)
         self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
@@ -646,7 +646,7 @@ class StatBox(BoxLayout):
     '''box for getting and displaying stats about rolls. parent app is what's
     called for dice actions and info updates. all calls are
     self.parent_app.request_something(*args).'''
-    view_model = ObjectProperty(mvm.StatBox(mvm.TableManager()))
+    view_model = ObjectProperty(mvm.StatBox(mvm.DiceTableManager()))
     def __init__(self, **kwargs):
         super(StatBox, self).__init__(**kwargs)
 
@@ -716,7 +716,7 @@ class PageBox(BoxLayout):
 # kv file line 382
 class InfoBox(BoxLayout):
     '''displays basic info about the die.'''
-    view_model = ObjectProperty(mvm.InfoBox(mvm.TableManager()))
+    view_model = ObjectProperty(mvm.InfoBox(mvm.DiceTableManager()))
     def __init__(self, **kwargs):
         super(InfoBox, self).__init__(**kwargs)
     def initialize(self):
@@ -762,9 +762,9 @@ class DicePlatform(BoxLayout):
     '''the main box.  the parent_app.'''
     def __init__(self, **kwargs):
         super(DicePlatform, self).__init__(**kwargs)
-        table = mvm.TableManager()
-        history = mvm.DataManager()
-        self._read_hist_msg = history.read_save_data()
+        table = mvm.DiceTableManager()
+        history = mvm.SavedTablesManager()
+        self._read_hist_msg = history.reload_from_file()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
         stat = mvm.StatBox(table)

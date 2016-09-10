@@ -9,7 +9,7 @@ import unittest
 import numpy as np
 import dicetables as dt
 import dt_gui_mvm as mvm
-import file_handler as fh
+import filehandler as fh
 
 
 class DummyParent(object):
@@ -22,85 +22,85 @@ class DummyParent(object):
             'range': (10, 1000),
             'text': 'text'}
 
-    def request_info(self, key):
+    def get_info(self, key):
         return self.dictionary[key]
 
 
 class TestMVM(unittest.TestCase):
     def setUp(self):
-        self.TM = mvm.TableManager()
-        self.DM = mvm.DataManager()
-        self.GB = mvm.GraphBox(self.TM, self.DM, True)
-        self.CB = mvm.ChangeBox(self.TM)
-        self.SB = mvm.StatBox(self.TM)
-        self.AB = mvm.AddBox(self.TM)
+        self.DTM = mvm.DiceTableManager()
+        self.STM = mvm.SavedTablesManager()
+        self.GB = mvm.GraphBox(self.DTM, self.STM, True)
+        self.CB = mvm.ChangeBox(self.DTM)
+        self.SB = mvm.StatBox(self.DTM)
+        self.AB = mvm.AddBox(self.DTM)
         self.IB = mvm.InfoBox(DummyParent())
 
     def tearDown(self):
-        del self.TM
-        del self.DM
+        del self.DTM
+        del self.STM
         del self.GB
         del self.CB
         del self.SB
         del self.AB
         del self.IB
 
-    def test_table_manager_request_info_range(self):
-        self.assertEqual(self.TM.request_info('range'), (0, 0))
+    def test_dice_table_manager_get_info_range(self):
+        self.assertEqual(self.DTM.get_info('range'), (0, 0))
 
-    def test_table_manager_request_info_mean(self):
-        self.assertEqual(self.TM.request_info('mean'), 0.0)
+    def test_dice_table_manager_get_info_mean(self):
+        self.assertEqual(self.DTM.get_info('mean'), 0.0)
 
-    def test_table_manager_request_info_stddev(self):
-        self.assertEqual(self.TM.request_info('stddev'), 0.0)
+    def test_dice_table_manager_get_info_stddev(self):
+        self.assertEqual(self.DTM.get_info('stddev'), 0.0)
 
-    def test_table_manager_request_info_text(self):
-        self.TM.request_add(1, dt.Die(3))
-        self.assertEqual(self.TM.request_info('text'), '1D3')
+    def test_dice_table_manager_get_info_text(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.assertEqual(self.DTM.get_info('text'), '1D3')
 
-    def test_table_manager_request_info_text_one_line(self):
-        self.TM.request_add(1, dt.Die(3))
-        self.TM.request_add(1, dt.Die(4))
-        self.assertEqual(self.TM.request_info('text_one_line'), '1D3 \\ 1D4')
+    def test_dice_table_manager_get_info_text_one_line(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.DTM.request_add(1, dt.Die(4))
+        self.assertEqual(self.DTM.get_info('text_one_line'), '1D3 \\ 1D4')
 
-    def test_table_manager_request_info_weights(self):
-        self.TM.request_add(1, dt.Die(3))
-        self.assertEqual(self.TM.request_info('weights_info'),
+    def test_dice_table_manager_get_info_weights(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.assertEqual(self.DTM.get_info('weights_info'),
                          '1D3\n    No weights')
 
-    def test_table_manager_request_info_dice_list(self):
-        self.TM.request_add(1, dt.Die(3))
-        self.assertEqual(self.TM.request_info('dice_list'),
+    def test_dice_table_manager_get_info_dice_list(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.assertEqual(self.DTM.get_info('dice_list'),
                          [(dt.Die(3), 1)])
 
-    def test_table_manager_request_info_full_text(self):
-        self.assertEqual(self.TM.request_info('full_text'), '0: 1\n')
+    def test_dice_table_manager_get_info_full_text(self):
+        self.assertEqual(self.DTM.get_info('full_text'), '0: 1\n')
 
-    def test_table_manager_request_info_tuple_list(self):
-        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
+    def test_dice_table_manager_get_info_tuple_list(self):
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
 
-    def test_table_manager_request_stats_true_zero_chance(self):
-        self.assertEqual(self.TM.request_stats([1, 2, 3]),
+    def test_dice_table_manager_get_stats_true_zero_chance(self):
+        self.assertEqual(self.DTM.get_stats([1, 2, 3]),
                          ('1-3', '0.0', '1', 'infinity', '0.0'))
 
-    def test_table_manager_request_stats_tiny_tiny_chance(self):
-        self.TM.request_add(1, dt.WeightedDie({1: 1, 2: 10 ** 1000}))
-        self.assertEqual(self.TM.request_stats([1]),
+    def test_dice_table_manager_get_stats_tiny_tiny_chance(self):
+        self.DTM.request_add(1, dt.WeightedDie({1: 1, 2: 10 ** 1000}))
+        self.assertEqual(self.DTM.get_stats([1]),
                          ('1', '1', '1.000e+1000', '1.000e+1000', '1.000e-998'))
 
-    def test_table_manager_request_stats_normal_case(self):
-        self.assertEqual(self.TM.request_stats([0]),
+    def test_dice_table_manager_get_stats_normal_case(self):
+        self.assertEqual(self.DTM.get_stats([0]),
                          ('0', '1', '1', '1.000', '100.0'))
 
-    def test_table_manager_request_plot_obj(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(1, dt.Die(4))
+    def test_dice_table_manager_get_obj_to_save(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(4))
         expected_object_data = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
                                 'y_range': (12.5, 25.0),
                                 'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
                                 'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
                                 'graph_axes': [(2, 3, 4, 5, 6), (12.5, 25.0, 25.0, 25.0, 12.5)]}
-        data_object = self.TM.request_data_obj()
+        data_object = self.DTM.get_obj_to_save()
         self.assertEqual(data_object.text, expected_object_data['text'])
         self.assertEqual(data_object.x_range, expected_object_data['x_range'])
         self.assertEqual(data_object.y_range, expected_object_data['y_range'])
@@ -108,155 +108,155 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(data_object.tuple_list, expected_object_data['tuple_list'])
         self.assertEqual(data_object.graph_axes, expected_object_data['graph_axes'])
 
-    def test_table_manager_request_reload(self):
+    def test_dice_table_manager_request_reload(self):
         table = dt.DiceTable()
         table.add_die(1, dt.Die(2))
         table.add_die(1, dt.Die(4))
-        data_obj = fh.DiceTableData('1D2 \\ 1D4', table.frequency_all(), table.get_list(), [])
-        self.TM.request_reload(data_obj)
-        self.assertEqual(self.TM.request_info('text'), '1D2\n1D4')
-        self.assertEqual(self.TM.request_info('full_text'),
+        data_obj = fh.SavedDiceTable('1D2 \\ 1D4', table.frequency_all(), table.get_list(), [])
+        self.DTM.request_reload(data_obj)
+        self.assertEqual(self.DTM.get_info('text'), '1D2\n1D4')
+        self.assertEqual(self.DTM.get_info('full_text'),
                          '2: 1\n3: 2\n4: 2\n5: 2\n6: 1\n')
 
-    def test_table_manager_request_add(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(1, dt.Die(4))
-        self.assertEqual(self.TM.request_info('text'), '1D2\n1D4')
-        self.assertEqual(self.TM.request_info('full_text'),
+    def test_dice_table_manager_request_add(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(4))
+        self.assertEqual(self.DTM.get_info('text'), '1D2\n1D4')
+        self.assertEqual(self.DTM.get_info('full_text'),
                          '2: 1\n3: 2\n4: 2\n5: 2\n6: 1\n')
 
-    def test_table_manager_request_remove_normal_case(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(1, dt.Die(4))
-        self.TM.request_remove(1, dt.Die(4))
-        self.assertEqual(self.TM.request_info('text'), '1D2')
-        self.assertEqual(self.TM.request_info('tuple_list'), [(1, 1), (2, 1)])
+    def test_dice_table_manager_request_remove_normal_case(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(4))
+        self.DTM.request_remove(1, dt.Die(4))
+        self.assertEqual(self.DTM.get_info('text'), '1D2')
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
 
-    def test_table_manager_request_remove_only_removes_max_dice(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(1, dt.Die(4))
-        self.TM.request_remove(1000, dt.Die(4))
-        self.assertEqual(self.TM.request_info('text'), '1D2')
-        self.assertEqual(self.TM.request_info('tuple_list'), [(1, 1), (2, 1)])
+    def test_dice_table_manager_request_remove_only_removes_max_dice(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(4))
+        self.DTM.request_remove(1000, dt.Die(4))
+        self.assertEqual(self.DTM.get_info('text'), '1D2')
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
 
-    def test_table_manager_request_remove_doesnt_remove_if_not_there(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_remove(1, dt.Die(4))
-        self.assertEqual(self.TM.request_info('text'), '1D2')
-        self.assertEqual(self.TM.request_info('tuple_list'), [(1, 1), (2, 1)])
+    def test_dice_table_manager_request_remove_doesnt_remove_if_not_there(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_remove(1, dt.Die(4))
+        self.assertEqual(self.DTM.get_info('text'), '1D2')
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
 
-    def test_table_manager_request_reset(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_reset()
-        self.assertEqual(self.TM.request_info('text'), '')
-        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
+    def test_dice_table_manager_request_reset(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_reset()
+        self.assertEqual(self.DTM.get_info('text'), '')
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
 
-    def test_data_manager_inits_as_empty(self):
-        self.assertEqual(self.DM._data_array.size, 0)
+    def test_saved_tables_manager_inits_as_empty(self):
+        self.assertEqual(self.STM._saved_tables.size, 0)
 
-    def test_data_manager_adds_plot_obj(self):
-        self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.assertEqual(self.DM._data_array[0], obj)
+    def test_saved_tables_manager_saves_new(self):
+        self.DTM.request_add(1, dt.Die(2))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.assertEqual(self.STM._saved_tables[0], obj)
 
-    def test_data_manager_wont_add_empty_plot_obj(self):
-        self.DM.add_data_obj(fh.DiceTableData.empty_object())
-        self.assertEqual(self.DM._data_array.size, 0)
+    def test_saved_tables_manager_wont_save_empty_obj(self):
+        self.STM.save_new(fh.SavedDiceTable.empty_object())
+        self.assertEqual(self.STM._saved_tables.size, 0)
 
-    def test_data_manager_add_plot_obj__wont_add_duplicates(self):
-        self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.DM.add_data_obj(obj)
-        self.assertEqual(self.DM._data_array.size, 1)
-        self.assertEqual(self.DM._data_array[0], obj)
+    def test_saved_tables_manager_save_new_wont_add_duplicates(self):
+        self.DTM.request_add(1, dt.Die(2))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.STM.save_new(obj)
+        self.assertEqual(self.STM._saved_tables.size, 1)
+        self.assertEqual(self.STM._saved_tables[0], obj)
 
-    def test_data_manager_get_obj_returns_obj(self):
-        self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.assertEqual(self.DM.retrieve_obj('1D2', [(1, 1), (2, 1)]), obj)
+    def test_saved_tables_manager_get_old_returns_correct_one(self):
+        self.DTM.request_add(1, dt.Die(2))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.assertEqual(self.STM.get_old('1D2', [(1, 1), (2, 1)]), obj)
 
-    def test_data_manager_get_obj_returns_empty_if_not_pts(self):
-        self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.assertTrue(self.DM.retrieve_obj('hi', [(1, 1), (2, 1)]).is_empty_object())
+    def test_saved_tables_manager_get_old_returns_empty_if_not_pts(self):
+        self.DTM.request_add(1, dt.Die(2))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.assertTrue(self.STM.get_old('hi', [(1, 1), (2, 1)]).is_empty())
 
-    def test_data_manager_get_obj_returns_empty_if_not_text(self):
-        self.TM.request_add(1, dt.Die(2))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.assertTrue(self.DM.retrieve_obj('hi', [(1, 1), (2, 1)]).is_empty_object())
+    def test_saved_tables_manager_get_old_returns_empty_if_not_text(self):
+        self.DTM.request_add(1, dt.Die(2))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.assertTrue(self.STM.get_old('hi', [(1, 1), (2, 1)]).is_empty())
 
-    def test_data_manager_get_labels_returns_empty_for_empty_hist(self):
-        self.assertEqual(self.DM.get_labels(), [])
+    def test_saved_tables_manager_get_labels_returns_empty_list_when_empty(self):
+        self.assertEqual(self.STM.get_labels(), [])
 
-    def test_data_manager_get_labels_returns_as_expected(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+    def test_saved_tables_manager_get_labels_returns_as_expected(self):
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.assertEqual(
-            self.DM.get_labels(),
+            self.STM.get_labels(),
             [('1D1', [(1, 1)]), ('1D1 \\ 1D2', [(2, 1), (3, 1)])])
 
-    def test_data_manager_clear_all(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.DM.clear_all()
-        self.assertEqual(self.DM.get_labels(), [])
+    def test_saved_tables_manager_clear_all(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.STM.clear_all()
+        self.assertEqual(self.STM.get_labels(), [])
 
-    def test_data_manager_clear_selected__empty_list_does_nothing(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.DM.clear_selected([])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_saved_tables_manager_clear_selected__empty_list_does_nothing(self):
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.STM.clear_selected([])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
-    def test_data_manager_clear_selected__not_present_does_nothing(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        bad_data_obj = fh.DiceTableData('wrong', [(1, 1)], [], [])
-        self.DM.clear_selected([bad_data_obj])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+    def test_saved_tables_manager_clear_selected__not_present_does_nothing(self):
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        bad_data_obj = fh.SavedDiceTable('wrong', [(1, 1)], [], [])
+        self.STM.clear_selected([bad_data_obj])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
-    def test_data_manager_clear_selected__works_as_expected(self):
-        self.TM.request_add(1, dt.Die(1))
-        obj_1 = self.TM.request_data_obj()
-        self.TM.request_add(1, dt.Die(2))
-        obj_2 = self.TM.request_data_obj()
-        self.TM.request_add(1, dt.Die(3))
-        obj_3 = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj_1)
-        self.DM.add_data_obj(obj_2)
-        self.DM.add_data_obj(obj_3)
-        self.DM.clear_selected([obj_1, obj_3])
-        self.assertEqual(self.DM.get_labels(),
+    def test_saved_tables_manager_clear_selected_works_as_expected(self):
+        self.DTM.request_add(1, dt.Die(1))
+        obj_1 = self.DTM.get_obj_to_save()
+        self.DTM.request_add(1, dt.Die(2))
+        obj_2 = self.DTM.get_obj_to_save()
+        self.DTM.request_add(1, dt.Die(3))
+        obj_3 = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj_1)
+        self.STM.save_new(obj_2)
+        self.STM.save_new(obj_3)
+        self.STM.clear_selected([obj_1, obj_3])
+        self.assertEqual(self.STM.get_labels(),
                          [(obj_2.text, obj_2.tuple_list)])
 
-    def test_data_manager_write_save_data(self):
-        self.TM.request_add(2, dt.Die(1))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.DM.write_save_data()
+    def test_saved_tables_manager_write_to_file(self):
+        self.DTM.request_add(2, dt.Die(1))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.STM.write_to_file()
         save_data = np.load('save_data.npy')
         self.assertEqual(save_data[0], obj)
         self.assertEqual(save_data.size, 1)
 
-    def test_data_manager_read_save_data(self):
-        self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.DM.write_save_data()
-        to_test = mvm.DataManager()
-        msg = to_test.read_save_data()
+    def test_saved_tables_manager_reload_from_file(self):
+        self.DTM.request_add(1, dt.Die(1))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.STM.write_to_file()
+        to_test = mvm.SavedTablesManager()
+        msg = to_test.reload_from_file()
         self.assertEqual(msg, 'ok')
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
-    def test_data_manager_get_graphs_on_empty_save_data(self):
+    def test_saved_tables_manager_get_graphs_when_empty(self):
         self.assertEqual(
-            self.DM.get_graphs(True),
+            self.STM.get_graphs(True),
             (
                 (float('inf'), float('-inf')),
                 (float('inf'), float('-inf')),
@@ -264,27 +264,36 @@ class TestMVM(unittest.TestCase):
             )
         )
 
-    def test_data_manager_get_graphs_x_range(self):
-        self.TM.request_add(1, dt.ModDie(1, -101))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.ModDie(1, 199))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.assertEqual(self.DM.get_graphs(True)[0], (-100, 100))
+    def test_combine_ranges_first_range_wins(self):
+        self.assertEqual(mvm.combine_ranges((0, 5), (1, 2)), (0, 5))
 
-    def test_data_manager_get_graphs_y_range(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.assertEqual(self.DM.get_graphs(True)[1], (50.0, 100.0))
+    def test_combine_ranges_second_range_wins(self):
+        self.assertEqual(mvm.combine_ranges((0, 5), (-1, 12)), (-1, 12))
 
-    def test_data_manager_get_graphs(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+    def test_combine_ranges_mixed(self):
+        self.assertEqual(mvm.combine_ranges((0, 5), (1, 12)), (0, 12))
+
+    def test_saved_tables_manager_get_graphs_x_range(self):
+        self.DTM.request_add(1, dt.ModDie(1, -101))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.ModDie(1, 199))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.assertEqual(self.STM.get_graphs(True)[0], (-100, 100))
+
+    def test_saved_tables_manager_get_graphs_y_range(self):
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.assertEqual(self.STM.get_graphs(True)[1], (50.0, 100.0))
+
+    def test_saved_tables_manager_get_graphs(self):
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.assertEqual(
-            self.DM.get_graphs(True),
+            self.STM.get_graphs(True),
             (
                 (1, 2),
                 (100.0, 100.0),
@@ -304,40 +313,40 @@ class TestMVM(unittest.TestCase):
 
     def test_graph_box_graph_it_empty_doesnt_mutate_HM(self):
         self.GB.get_requested_graphs([])
-        self.assertEqual(self.DM.get_labels(), [])
+        self.assertEqual(self.STM.get_labels(), [])
 
     def test_graph_box_graph_it_adds_new_to_save_data(self):
-        self.assertEqual(self.DM.get_labels(), [])
-        self.TM.request_add(1, dt.Die(1))
+        self.assertEqual(self.STM.get_labels(), [])
+        self.DTM.request_add(1, dt.Die(1))
         self.GB.get_requested_graphs([('1D1', [(1, 1)])])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
     def test_graph_box_graph_it_writes_new_to_file(self):
         # resetting file to empty array
-        self.DM.write_save_data()
+        self.STM.write_to_file()
         save_data = np.load('save_data.npy')
         self.assertEqual(save_data.size, 0)
-        self.TM.request_add(1, dt.Die(1))
+        self.DTM.request_add(1, dt.Die(1))
         self.GB.get_requested_graphs([('1D1', [(1, 1)])])
         save_data = np.load('save_data.npy')
         self.assertEqual(save_data.size, 1)
-        self.assertEqual(save_data[0], self.TM.request_data_obj())
+        self.assertEqual(save_data[0], self.DTM.get_obj_to_save())
 
     def test_graph_box_graph_it_retrieves_from_DM_not_TM(self):
-        self.TM.request_add(1, dt.Die(2))
-        table_manager_object = self.TM.request_data_obj()
-        data_manager_object = fh.DiceTableData('1D2', [(1, 1), (2, 1)], [], [('this came from',), ('the DM',)])
-        self.DM.add_data_obj(data_manager_object)
-        self.assertEqual(table_manager_object, data_manager_object)
+        self.DTM.request_add(1, dt.Die(2))
+        from_dice_table_manager = self.DTM.get_obj_to_save()
+        from_saved_tables_manager = fh.SavedDiceTable('1D2', [(1, 1), (2, 1)], [], [('this came from',), ('the STM',)])
+        self.STM.save_new(from_saved_tables_manager)
+        self.assertEqual(from_dice_table_manager, from_saved_tables_manager)
         text_pts = self.GB.get_requested_graphs([('1D2', [(1, 1), (2, 1)])])[2]
-        self.assertEqual(text_pts, [('1D2', [('this came from',), ('the DM',)])])
+        self.assertEqual(text_pts, [('1D2', [('this came from',), ('the STM',)])])
 
     def test_graph_box_graph_it_retrieves_according_to_use_axes(self):
-        self.TM.request_add(1, dt.Die(1))
-        data_obj = self.TM.request_data_obj()
+        self.DTM.request_add(1, dt.Die(1))
+        data_obj = self.DTM.get_obj_to_save()
         axes_data = (data_obj.text, data_obj.graph_axes)
         pts_data = (data_obj.text, data_obj.graph_pts)
-        pts_GB = mvm.GraphBox(self.TM, mvm.DataManager(), False)
+        pts_GB = mvm.GraphBox(self.DTM, mvm.SavedTablesManager(), False)
 
         self.assertEqual(
             pts_GB.get_requested_graphs([('1D1', [(1, 1)])]),
@@ -349,36 +358,36 @@ class TestMVM(unittest.TestCase):
         )
 
     def test_graph_box_clear_selected_does_nothing_with_empty_list(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.GB.clear_selected([])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
     def test_graph_box_clear_selected_does_nothing_with_nonsense_list(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.GB.clear_selected([('dur', [(1, 2)])])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
     def test_graph_box_clear_selected_works_as_expected(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.GB.clear_selected([('2D1', [(2, 1)]),
                                 ('2D1 \\ 1D2', [(3, 1), (4, 1)])])
-        self.assertEqual(self.DM.get_labels(), [('1D1', [(1, 1)])])
+        self.assertEqual(self.STM.get_labels(), [('1D1', [(1, 1)])])
 
     def test_graph_box_clear_selected_writes_save_data(self):
-        self.TM.request_add(1, dt.Die(1))
-        expected_for_hist = self.TM.request_data_obj()
-        self.DM.add_data_obj(expected_for_hist)
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DTM.request_add(1, dt.Die(1))
+        expected_for_hist = self.DTM.get_obj_to_save()
+        self.STM.save_new(expected_for_hist)
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.GB.clear_selected([('2D1', [(2, 1)]),
                                 ('2D1 \\ 1D2', [(3, 1), (4, 1)])])
         save_data = np.load('save_data.npy')
@@ -386,44 +395,44 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(save_data[0], expected_for_hist)
 
     def test_graph_box_clear_all_works_and_writes_empty_save_data(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
-        self.DM.add_data_obj(self.TM.request_data_obj())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
+        self.STM.save_new(self.DTM.get_obj_to_save())
         self.GB.clear_all()
-        self.assertEqual(self.DM.get_labels(), [])
+        self.assertEqual(self.STM.get_labels(), [])
         self.assertEqual(np.load('save_data.npy').size, 0)
 
     def test_graph_box_display_returns_empty(self):
         self.assertEqual(self.GB.display(), (('', [(0, 1)]), []))
 
     def test_graph_box_display_returns_as_expected(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(2))
         expected = (('2D1 \\ 1D2', [(3, 1), (4, 1)]),
                     [('1D1', [(1, 1)]), ('2D1', [(2, 1)])])
         self.assertEqual(self.GB.display(), expected)
 
     def test_graph_box_reload_saved_dice_table_does_nothing_if_obj_not_in_hist(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.DM.add_data_obj(self.TM.request_data_obj())
-        self.TM.request_add(1, dt.Die(1))
-        current_state = self.TM.request_data_obj()
+        self.DTM.request_add(1, dt.Die(1))
+        self.STM.save_new(self.DTM.get_obj_to_save())
+        self.DTM.request_add(1, dt.Die(1))
+        current_state = self.DTM.get_obj_to_save()
         self.GB.reload_saved_dice_table('abc', [(1, 2)])
-        self.assertEqual(self.TM.request_data_obj(), current_state)
+        self.assertEqual(self.DTM.get_obj_to_save(), current_state)
 
     def test_graph_box_reload_saved_dice_table_works_as_expected(self):
-        self.TM.request_add(1, dt.Die(1))
-        obj = self.TM.request_data_obj()
-        self.DM.add_data_obj(obj)
-        self.TM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(1))
+        obj = self.DTM.get_obj_to_save()
+        self.STM.save_new(obj)
+        self.DTM.request_add(1, dt.Die(2))
         self.GB.reload_saved_dice_table('1D1', [(1, 1)])
-        self.assertEqual(self.TM.request_data_obj(), obj)
+        self.assertEqual(self.DTM.get_obj_to_save(), obj)
 
     def test_get_die_roll_details_min_die(self):
         self.assertEqual(mvm.get_die_roll_details(dt.Die(1)), 'D1 rolls:\n  1 with frequency: 1')
@@ -472,8 +481,8 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.CB.get_dice_details(), [])
 
     def test_change_box_get_dice_detail_normal(self):
-        self.TM.request_add(1, dt.Die(1))
-        self.TM.request_add(1, dt.Die(2))
+        self.DTM.request_add(1, dt.Die(1))
+        self.DTM.request_add(1, dt.Die(2))
         self.assertEqual(self.CB.get_dice_details(),
                          ['D1 rolls:\n  1 with frequency: 1',
                           'D2 rolls:\n  1 with frequency: 1\n  2 with frequency: 1'])
@@ -482,8 +491,8 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.CB.display(), [])
 
     def test_change_box_display_normal(self):
-        self.TM.request_add(2, dt.Die(100))
-        self.TM.request_add(1, dt.Die(101))
+        self.DTM.request_add(2, dt.Die(100))
+        self.DTM.request_add(1, dt.Die(101))
         expected = [
             (['-5', '-1', '2D100', '+1', '+5'], dt.Die(100)),
             (['-1', '1D101', '+1'], dt.Die(101))]
@@ -491,25 +500,25 @@ class TestMVM(unittest.TestCase):
 
     def test_change_box_add_rm_at_zero(self):
         self.CB.add_rm(0, dt.Die(5))
-        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
-        self.assertEqual(self.TM.request_info('dice_list'), [])
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
+        self.assertEqual(self.DTM.get_info('dice_list'), [])
 
     def test_change_box_add_rm_pos_number(self):
         self.CB.add_rm(2, dt.Die(1))
-        self.assertEqual(self.TM.request_info('tuple_list'), [(2, 1)])
-        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(1), 2)])
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(2, 1)])
+        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(1), 2)])
 
     def test_change_box_add_rm_neg_number(self):
         self.CB.add_rm(2, dt.Die(1))
         self.CB.add_rm(-1, dt.Die(1))
-        self.assertEqual(self.TM.request_info('tuple_list'), [(1, 1)])
-        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(1), 1)])
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1)])
+        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(1), 1)])
 
     def test_change_box_reset(self):
         self.CB.add_rm(1, dt.Die(2))
         self.CB.reset()
-        self.assertEqual(self.TM.request_info('tuple_list'), [(0, 1)])
-        self.assertEqual(self.TM.request_info('dice_list'), [])
+        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
+        self.assertEqual(self.DTM.get_info('dice_list'), [])
 
     def test_make_die_input_die__die_empty_dict(self):
         self.assertEqual(mvm.make_die(3, 0, 0, {}), dt.Die(3))
@@ -556,16 +565,16 @@ class TestMVM(unittest.TestCase):
                          ['D6', '+1', '+5', '+10', '+50', '+100', '+500'])
 
     def test_add_box_display_current(self):
-        self.TM.request_add(1, dt.Die(2))
-        self.TM.request_add(2, dt.Die(1))
+        self.DTM.request_add(1, dt.Die(2))
+        self.DTM.request_add(2, dt.Die(1))
         self.assertEqual(self.AB.display_current(), '2D1 \\ 1D2')
 
     def test_add_box_add(self):
         self.AB._die = dt.Die(2)
         self.AB.add(2)
-        self.assertEqual(self.TM.request_info('tuple_list'),
+        self.assertEqual(self.DTM.get_info('tuple_list'),
                          [(2, 1), (3, 2), (4, 1)])
-        self.assertEqual(self.TM.request_info('dice_list'), [(dt.Die(2), 2)])
+        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(2), 2)])
 
     def test_add_box_set_size_resets_dictionary(self):
         self.AB._dictionary = {1: 2}
@@ -612,7 +621,7 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.AB._die, dt.WeightedDie({1: 3, 2: 1}))
 
     def test_stat_box_display_stats_val_lt_min_range(self):
-        self.TM.request_add(2, dt.Die(2))
+        self.DTM.request_add(2, dt.Die(2))
         stat_text = ('\n    2-4 occurred 4 times\n' +
                      '    out of 4 total combinations\n\n' +
                      '    that\'s a one in 1.000 chance\n' +
@@ -620,7 +629,7 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.SB.display_stats(-1, 4), [stat_text, (2, 4)])
 
     def test_stat_box_display_stats_val_gt_max_range(self):
-        self.TM.request_add(2, dt.Die(2))
+        self.DTM.request_add(2, dt.Die(2))
         stat_text = ('\n    2-4 occurred 4 times\n' +
                      '    out of 4 total combinations\n\n' +
                      '    that\'s a one in 1.000 chance\n' +
@@ -628,7 +637,7 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.SB.display_stats(8, 2), [stat_text, (4, 2)])
 
     def test_stat_box_display_stats_val_1_val_2_equal(self):
-        self.TM.request_add(2, dt.Die(2))
+        self.DTM.request_add(2, dt.Die(2))
         stat_text = ('\n    4 occurred 1 times\n' +
                      '    out of 4 total combinations\n\n' +
                      '    that\'s a one in 4.000 chance\n' +
@@ -636,7 +645,7 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.SB.display_stats(4, 4), [stat_text, (4, 4)])
 
     def test_stat_box_display(self):
-        self.TM.request_add(2, dt.Die(2))
+        self.DTM.request_add(2, dt.Die(2))
         stat_text = ('\n    2-4 occurred 4 times\n' +
                      '    out of 4 total combinations\n\n' +
                      '    that\'s a one in 1.000 chance\n' +
@@ -649,7 +658,7 @@ class TestMVM(unittest.TestCase):
                          [info_text, stat_text, (4, 2), (2, 4)])
 
     def test_stat_box_display_formatting(self):
-        self.TM.request_add(1, dt.WeightedDie({1: 1000, 10000: 1000}))
+        self.DTM.request_add(1, dt.WeightedDie({1: 1000, 10000: 1000}))
         stat_text = ('\n    1,000-10,000 occurred 1,000 times\n' +
                      '    out of 2,000 total combinations\n\n' +
                      '    that\'s a one in 2.000 chance\n' +

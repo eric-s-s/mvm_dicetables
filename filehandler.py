@@ -7,23 +7,22 @@ if version_info[0] > 2:
     from pickle import UnpicklingError
 else:
     from cPickle import UnpicklingError
-from itertools import cycle
 
 import dicetables as dt
 import numpy as np
 
 
-class DiceTableData(object):
+class SavedDiceTable(object):
     """a read-only object holding expensive-to-generate DiceTable info"""
-    def __init__(self, text, tuple_list, dice_list, graph_axes_data):
+    def __init__(self, text, tuple_list, dice_list, graph_axes):
         """
         text = string, name of table. dice_list = tuple list [(die, number)].
-        tuple_list = tuple list of table.frequency_all(), graph_axes_data =  [(x-axis data), (y-axis data)]
+        tuple_list = tuple list of table.frequency_all(), graph_axes =  [(x-axis data), (y-axis data)]
         """
         self._text = text
         self._tuple_list = tuple_list
         self._dice_list = dice_list
-        self._graph_axes = graph_axes_data
+        self._graph_axes = graph_axes
 
     @classmethod
     def empty_object(cls):
@@ -67,8 +66,8 @@ class DiceTableData(object):
     def __ne__(self, other):
         return not self == other
 
-    def is_empty_object(self):
-        return self == DiceTableData.empty_object()
+    def is_empty(self):
+        return self == SavedDiceTable.empty_object()
 
     def verify_all_data(self):
         msg = 'error:'
@@ -98,7 +97,7 @@ def check_datum_for_types(datum, data_types_tuple, error_msg):
 
 
 def check_iterable_for_types(data_list, data_type_tuple, error_msg):
-    if not np.iterable(data_list):
+    if not is_strictly_iterable(data_list):
         return error_msg
     for datum in data_list:
         msg_result = check_datum_for_types(datum, data_type_tuple, 'error')
@@ -108,7 +107,7 @@ def check_iterable_for_types(data_list, data_type_tuple, error_msg):
 
 
 def check_iterables_in_iterable_for_types(tuple_list, types_for_each_element, error_msg):
-    if not np.iterable(tuple_list):
+    if not is_strictly_iterable(tuple_list):
         return error_msg
     if not iterable_and_types_same_len(tuple_list, types_for_each_element) and not is_empty_iterable(tuple_list):
         return error_msg
@@ -117,21 +116,6 @@ def check_iterables_in_iterable_for_types(tuple_list, types_for_each_element, er
         if msg_result == 'error':
             return error_msg
     return ''
-
-
-def iterable_and_types_same_len(iterable, types_list):
-    return len(iterable) == len(types_list)
-
-
-def is_empty_iterable(iterable_of_iterables):
-    if not np.iterable(iterable_of_iterables) or isinstance(iterable_of_iterables, str):
-        return False
-    if not iterable_of_iterables:
-        return True
-    answer = True
-    for element in iterable_of_iterables:
-        answer = answer and is_empty_iterable(element)
-    return answer
 
 
 def check_iterables_in_iterable_for_type_sequence(tuple_list, data_types_within_each_tuple, error_msg):
@@ -143,9 +127,28 @@ def check_iterables_in_iterable_for_type_sequence(tuple_list, data_types_within_
     return check_iterables_in_iterable_for_types(iterable_uniform_tuples, data_types_within_each_tuple, error_msg)
 
 
-def check_data_objects_within_array(save_data_array):
+def is_strictly_iterable(iterable):
+    return hasattr(iterable, '__iter__')
+
+
+def iterable_and_types_same_len(iterable, types_list):
+    return len(iterable) == len(types_list)
+
+
+def is_empty_iterable(iterable_of_iterables):
+    if not is_strictly_iterable(iterable_of_iterables):
+        return False
+    if not iterable_of_iterables:
+        return True
+    answer = True
+    for element in iterable_of_iterables:
+        answer = answer and is_empty_iterable(element)
+    return answer
+
+
+def check_saved_tables_within_array(save_data_array):
     for data_obj in save_data_array:
-        if not isinstance(data_obj, DiceTableData):
+        if not isinstance(data_obj, SavedDiceTable):
             return 'error: wrong object in array'
         msg = data_obj.verify_all_data()
         if msg:
@@ -159,11 +162,11 @@ def check_array_is_correct_type(save_data_array):
     return ''
 
 
-def check_save_data_array(save_data_array):
+def check_saved_tables_array(save_data_array):
     msg = check_array_is_correct_type(save_data_array)
     if msg:
         return msg
-    msg = check_data_objects_within_array(save_data_array)
+    msg = check_saved_tables_within_array(save_data_array)
     if msg:
         return msg
     if save_data_array.size:
@@ -179,16 +182,16 @@ def read_message_and_return_original_or_empty_array(msg, original_object):
         return msg, original_object
 
 
-def write_save_data(save_data_array):
+def write_saved_tables_array(save_data_array):
     """takes a numpy array and writes it"""
     np.save('save_data', save_data_array)
 
 
-def read_save_data():
+def read_saved_tables_array():
     """tries to find the np file and read it returns a np array and a message"""
     try:
         save_data_array = np.load('save_data.npy')
-        msg = check_save_data_array(save_data_array)
+        msg = check_saved_tables_array(save_data_array)
     except IOError:
         save_data_array = []
         msg = 'error: no file'

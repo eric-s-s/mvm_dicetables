@@ -180,7 +180,7 @@ class AddBox(object):
         self.frame.grid_columnconfigure(2, pad=20)
         self.frame.grid_columnconfigure(3, pad=20)
 
-        self.view_model = mvm.AddBox(mvm.TableManager())
+        self.view_model = mvm.AddBox(mvm.DiceTableManager())
 
         self.current = tk.StringVar()
         self.current.set('\n\n\n\n')
@@ -301,7 +301,7 @@ class ChangeBox(object):
         '''master is an object that has master.frame.'''
         self.master = master
         self.frame = tk.Frame(master.frame)
-        self.view_model = mvm.ChangeBox(mvm.TableManager())
+        self.view_model = mvm.ChangeBox(mvm.DiceTableManager())
     def add_rm(self, text, die):
         '''uses die stored in button and btn text to request add or rm'''
         self.view_model.add_rm(int(text), die)
@@ -590,14 +590,14 @@ class App(object):
         self.frame.rowconfigure(0, weight=1)
         self.frame.rowconfigure(0, weight=1)
         self.frame.pack()
-        table = mvm.TableManager()
-        history = mvm.DataManager()
+        table = mvm.DiceTableManager()
+        history = mvm.SavedTablesManager()
 
         #reloads history file.  if corrupted, notifies and writes an empty hist
-        hist_msg = history.read_save_data()
+        hist_msg = history.reload_from_file()
         if 'ok' not in hist_msg and hist_msg != 'error: no file':
             msgbox.showinfo('Error', 'Error loading history:\n' + hist_msg)
-            history.write_save_data()
+            history.write_to_file()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
         stat = mvm.StatBox(table)
