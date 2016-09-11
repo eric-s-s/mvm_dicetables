@@ -568,15 +568,15 @@ class GraphMenu(object):
         '''clears the history'''
         if self.view_model.display()[1]:
             if msgbox.askquestion('delete', 'Delete All?') == 'yes':
-                self.view_model.clear_all()
+                self.view_model.delete_all()
                 self.pack_reloader()
     def clear_selected(self, text_tuples_lst):
         '''gets passed a list of (text, tuple_list).  clears those tables from
         history'''
-        self.view_model.clear_selected(text_tuples_lst)
+        self.view_model.delete_selected(text_tuples_lst)
         self.pack_reloader()
     def edit_hist(self):
-        '''calls a popup to get a list for self.clear_selected'''
+        '''calls a popup to get a list for self.delete_selected'''
         if self.view_model.display()[1]:
             HistoryChooser(self, partial(self.clear_selected),
                            'Clear\nSelected')
@@ -591,7 +591,7 @@ class App(object):
         self.frame.rowconfigure(0, weight=1)
         self.frame.pack()
         table = mvm.DiceTableManager()
-        history = mvm.SavedTablesManager()
+        history = mvm.SavedTables()
 
         #reloads history file.  if corrupted, notifies and writes an empty hist
         hist_msg = history.reload_from_file()

@@ -1,4 +1,4 @@
-'''model and viewmodel for prototype'''
+"""model and viewmodel for prototype"""
 
 from __future__ import absolute_import
 
@@ -10,14 +10,14 @@ import filehandler as fh
 
 
 class DiceTableManager(object):
-    '''an object that controls the table'''
+    """an object that controls the table"""
 
     def __init__(self):
-        '''just a shell for table'''
+        """just a shell for table"""
         self._table = dt.DiceTable()
 
     def get_info(self, request):
-        '''returns requested info to child widget'''
+        """returns requested info to child widget"""
         requests = {'range': [self._table.values_range, ()],
                     'mean': [self._table.mean, ()],
                     'stddev': [self._table.stddev, ()],
@@ -31,7 +31,7 @@ class DiceTableManager(object):
         return command(*args)
 
     def get_stats(self, stat_list):
-        '''returns stat info from a list of ints'''
+        """returns stat info from a list of ints"""
         stat_info = list(dt.stats(self._table, stat_list))
         if stat_info[3] != 'infinity' and stat_info[4] == '0.0':
             tiny_percent = Decimal('1.0e+2') / Decimal(stat_info[3])
@@ -51,12 +51,12 @@ class DiceTableManager(object):
         self._table = data_obj.dice_table
 
     def request_add(self, number, die):
-        '''adds dice to table. number is int>=0. die is child of dt.ProtoDie'''
+        """adds dice to table. number is int>=0. die is child of dt.ProtoDie"""
         self._table.add_die(number, die)
 
     def request_remove(self, number, die):
-        '''safely removes dice from table. if too many removed, removes all of
-        that kind of dice. number is int>=0. die is child of dt.ProtoDie.'''
+        """safely removes dice from table. if too many removed, removes all of
+        that kind of dice. number is int>=0. die is child of dt.ProtoDie."""
         max_allowed = self._table.number_of_dice(die)
         self._table.remove_die(min(number, max_allowed), die)
 
@@ -65,7 +65,7 @@ class DiceTableManager(object):
         self._table = dt.DiceTable()
 
 
-class SavedTablesManager(object):
+class SavedTables(object):
     """keeps track of plot history and writing"""
 
     def __init__(self):
@@ -110,11 +110,11 @@ class SavedTablesManager(object):
             list_of_graphs.append((obj.text, graph_data))
         return x_range, y_range, list_of_graphs
 
-    def clear_all(self):
+    def delete_all(self):
         """clear graph history"""
         self._saved_tables = np.array([], dtype=object)
 
-    def clear_selected(self, obj_list):
+    def delete_selected(self, obj_list):
         """clear listed items from graph history. obj_list is a list of plot
         objects"""
         new_data_array = np.array([], dtype=object)
@@ -124,12 +124,12 @@ class SavedTablesManager(object):
         self._saved_tables = new_data_array
 
     def write_to_file(self):
-        '''overwrites graph history to 'numpy_history.npy' '''
+        """overwrites graph history to 'numpy_history.npy' """
         fh.write_saved_tables_array(self._saved_tables)
 
     def reload_from_file(self):
-        '''reads from 'numpy_history.npy' and checks for errors. returns a msg
-        that is either "ok" or begins with "error" '''
+        """reads from 'numpy_history.npy' and checks for errors. returns a msg
+        that is either "ok" or begins with "error" """
         msg, self._saved_tables = fh.read_saved_tables_array()
         return msg
 
@@ -141,32 +141,15 @@ def combine_ranges(range_1, range_2):
 
 
 class GraphBox(object):
-    '''manages graphing and history'''
+    """manages graphing and history"""
 
-    def __init__(self, table_manager, saved_tables, use_axes):
-        '''history is a SavedTablesManager, table_manager is a DiceTableManager.
-        _use_axes is a boolean - True if the graph uses axes. False if the graph
-        uses pts.'''
+    def __init__(self, table_manager, saved_tables, get_axes_not_pts):
+        """history is a SavedTables, table_manager is a DiceTableManager.
+        get_axes_not_pts is a boolean - True if the graph uses axes. False if the graph
+        uses pts."""
         self._saved_tables = saved_tables
         self._table = table_manager
-        self._use_axes = use_axes
-
-    def get_requested_graphs(self, list_of_texts_and_tuple_lists):
-        """gets passed a list of tuples containing (text, tuple_list).
-        text=str of table, tuple_list=[(roll=int, val=int), ...]
-        returns ( (x_range), (y_range), [(text, [graphing_values])...] )"""
-        manage_empties_and_duplicates = SavedTablesManager()
-        for text, tuple_list in list_of_texts_and_tuple_lists:
-            to_plot = self._saved_tables.get_old(text, tuple_list)
-            if to_plot.is_empty():
-                to_plot = self.verify_current_and_retrieve(text, tuple_list)
-            manage_empties_and_duplicates.save_new(to_plot)
-        return manage_empties_and_duplicates.get_graphs(self._use_axes)
-
-    def verify_current_and_retrieve(self, text, tuple_list):
-        if (text, tuple_list) == self.display_current_table():
-            return self.get_and_save_current_table()
-        return fh.SavedDiceTable.empty_object()
+        self._get_axes_not_pts = get_axes_not_pts
 
     def get_and_save_current_table(self):
         new_to_save = self._table.get_obj_to_save()
@@ -174,35 +157,52 @@ class GraphBox(object):
         self._saved_tables.write_to_file()
         return new_to_save
 
-    def clear_selected(self, text_tuple_list_lst):
-        '''gets passed a list of tuples containing 'tuple_list' and txt.
+    def verify_then_get_current(self, text, tuple_list):
+        if (text, tuple_list) == self.display_current_table():
+            return self.get_and_save_current_table()
+        return fh.SavedDiceTable.empty_object()
+
+    def get_requested_graphs(self, text_tuple_list_pairs):
+        """gets passed a list of tuples containing (text, tuple_list).
+        text=str of table, tuple_list=[(roll=int, val=int), ...]
+        returns ( (x_range), (y_range), [(text, [graphing_values])...] )"""
+        manage_empties_and_duplicates = SavedTables()
+        for text, tuple_list in text_tuple_list_pairs:
+            to_plot = self._saved_tables.get_old(text, tuple_list)
+            if to_plot.is_empty():
+                to_plot = self.verify_then_get_current(text, tuple_list)
+            manage_empties_and_duplicates.save_new(to_plot)
+        return manage_empties_and_duplicates.get_graphs(self._get_axes_not_pts)
+
+    def delete_selected(self, text_tuple_list_pairs):
+        """gets passed a list of tuples containing 'tuple_list' and txt.
         'tuple_list' is the 'tuple_list' key in a plot object or a
         tuple_list of a table. clears the objects from history and writes
-        the history'''
+        the history"""
         remove = []
-        for text, tuple_list in text_tuple_list_lst:
+        for text, tuple_list in text_tuple_list_pairs:
             remove.append(fh.SavedDiceTable(text, tuple_list, [], []))
-        self._saved_tables.clear_selected(remove)
+        self._saved_tables.delete_selected(remove)
         self._saved_tables.write_to_file()
 
-    def clear_all(self):
-        '''clears the history'''
-        self._saved_tables.clear_all()
+    def delete_all(self):
+        """clears the history"""
+        self._saved_tables.delete_all()
         self._saved_tables.write_to_file()
 
     def display_current_table(self):
         return self._table.get_info('text_one_line'), self._table.get_info('tuple_list')
 
-    def display_save_data(self):
+    def display_saved_tables(self):
         return self._saved_tables.get_labels()
 
     def display(self):
-        '''returns a tuple for a display output.
-        (table_manager_text_and_tuple_list, history_manager.get_labels())'''
-        return self.display_current_table(), self.display_save_data()
+        """returns a tuple for a display output.
+        (table_manager_text_and_tuple_list, history_manager.get_labels())"""
+        return self.display_current_table(), self.display_saved_tables()
 
     def reload_saved_dice_table(self, text, tuple_list):
-        '''takes a text, tuple_list and reloads that to table_manager'''
+        """takes a text, tuple_list and reloads that to table_manager"""
         data_obj = self._saved_tables.get_old(text, tuple_list)
         if not data_obj.is_empty():
             self._table.request_reload(data_obj)
@@ -246,10 +246,10 @@ def get_add_list(die):
 
 
 class ChangeBox(object):
-    '''controls changing the number of dice already in the table'''
+    """controls changing the number of dice already in the table"""
 
     def __init__(self, table_manager):
-        '''table_manager is a DiceTableManager'''
+        """table_manager is a DiceTableManager"""
         self._table = table_manager
 
     def get_dice_details(self):
@@ -259,8 +259,8 @@ class ChangeBox(object):
         return info_list
 
     def display(self):
-        '''returns a list of tuples (list_of_button/labels, die associated with
-        that list) derived from current stat of table'''
+        """returns a list of tuples (list_of_button/labels, die associated with
+        that list) derived from current stat of table"""
         display = []
         for die, number in self._table.get_info('dice_list'):
             add_rm_display = get_add_and_remove_labels(die, number, True)
@@ -268,21 +268,21 @@ class ChangeBox(object):
         return display
 
     def add_rm(self, number, die):
-        '''number is an int  die is a child of dt.ProtoDie'''
+        """number is an int  die is a child of dt.ProtoDie"""
         if number < 0:
             self._table.request_remove(abs(number), die)
         else:
             self._table.request_add(number, die)
 
     def reset(self):
-        '''resets the table back to empty'''
+        """resets the table back to empty"""
         self._table.request_reset()
 
 
 def make_die(size, modifier, multiplier, dictionary):
-    '''makes the die into a new die. IMPORTANT!! dictionary supercedes size
+    """makes the die into a new die. IMPORTANT!! dictionary supercedes size
     so if size is 6 and dictionary is {1:1, 2:4}, then die is made according
-    to dictionary.  size-int>0, modifier-int, multiplier-int>=0.'''
+    to dictionary.  size-int>0, modifier-int, multiplier-int>=0."""
     if not dictionary:
         dictionary = {1: 0}
     dice = {'Die': dt.Die(size),
@@ -310,11 +310,11 @@ def is_dictionary_for_weighted_die(dictionary):
 
 
 class AddBox(object):
-    '''selects and adds new dice to a table'''
+    """selects and adds new dice to a table"""
 
     def __init__(self, table_manager):
-        '''takes a DiceTableManager and a DieManager.  self.presets is a list of
-        preset die labels'''
+        """takes a DiceTableManager and a DieManager.  self.presets is a list of
+        preset die labels"""
         self._table = table_manager
         self._size = 6
         self._mod = 0
@@ -325,57 +325,57 @@ class AddBox(object):
                         (2, 4, 6, 8, 10, 12, 20, 100)]
 
     def get_die(self):
-        '''returns the die object'''
+        """returns the die object"""
         return self._die
 
     def get_die_details(self):
         return get_die_roll_details(self._die)
 
     def display_die(self):
-        '''returns a set of add values and str(die) for the bottom display
-        [die_sting, '+number' strings]'''
+        """returns a set of add values and str(die) for the bottom display
+        [die_sting, '+number' strings]"""
         return get_add_and_remove_labels(self._die, 0, False)
 
     def display_current(self):
-        '''displays the table info'''
+        """displays the table info"""
         return self._table.get_info('text_one_line')
 
     def add(self, number):
-        '''number is an int >=0. adds to the table_manager'''
+        """number is an int >=0. adds to the table_manager"""
         self._table.request_add(number, self._die)
 
     def _update_die(self):
-        '''updates the die. make_die at line 233'''
+        """updates the die. make_die at line 233"""
         self._die = make_die(self._size, self._mod, self._multiplier,
                              self._dictionary)
 
     def set_size(self, new_size):
-        '''size is int >=1 sets new size and refreshes the die'''
+        """size is int >=1 sets new size and refreshes the die"""
         self._dictionary = {}
         self._size = new_size
         self._update_die()
 
     def set_mod(self, new_mod):
-        '''mod is an int. sets new die modifier and refreshes the die'''
+        """mod is an int. sets new die modifier and refreshes the die"""
         self._mod = new_mod
         self._update_die()
 
     def set_multiplier(self, new_val):
-        '''new_val is an int >=0 sets new multiplier and refreshes the die'''
+        """new_val is an int >=0 sets new multiplier and refreshes the die"""
         self._multiplier = new_val
         self._update_die()
 
     def get_weights_text(self):
-        '''returns a list of texts for making a weights popup'''
+        """returns a list of texts for making a weights popup"""
         texts = []
         for roll in range(1, self._size + 1):
             texts.append('weight for {}'.format(roll))
         return texts
 
     def record_weights_text(self, text_val_lst):
-        '''takes a list of tuples(text, weightvalues) and makes a dictionary.
+        """takes a list of tuples(text, weightvalues) and makes a dictionary.
         text is format 'weight for {}'.format(roll).  weightvalue is int >=0
-        roll is int >= 1'''
+        roll is int >= 1"""
         self._dictionary = {}
         for text, weight in text_val_lst:
             roll = int(text[len('weight for '):])
@@ -384,17 +384,17 @@ class AddBox(object):
 
 
 class StatBox(object):
-    '''gets stats for table and displays.'''
+    """gets stats for table and displays."""
 
     def __init__(self, table_manager):
-        '''simply inits with a DiceTableManager'''
+        """simply inits with a DiceTableManager"""
         self._table = table_manager
 
     def display(self, val_1, val_2):
-        '''val_1 and val_2 are ints passed from the stat sliders.
+        """val_1 and val_2 are ints passed from the stat sliders.
         returns a list of info. [info_text, stat_text,(new_val_1, new_val_2)
                                  (val_min, val_max)]
-        for displaying updates when info changes.'''
+        for displaying updates when info changes."""
         val_min, val_max = self._table.get_info('range')
         mean = self._table.get_info('mean')
         stddev = self._table.get_info('stddev')
@@ -406,9 +406,9 @@ class StatBox(object):
         return [info_text, stat_text, values, (val_min, val_max)]
 
     def display_stats(self, val_1, val_2):
-        '''val_1 and val_2 are ints. returns a list
+        """val_1 and val_2 are ints. returns a list
         [text showing stats for all rolls between and including vals,
-         (new_val_1, new_val_2), (val_min, val_max)]'''
+         (new_val_1, new_val_2), (val_min, val_max)]"""
         val_min, val_max = self._table.get_info('range')
 
         val_1 = min(val_max, max(val_min, val_1))
@@ -424,18 +424,18 @@ class StatBox(object):
 
 
 class InfoBox(object):
-    '''displays long info about object. can also display long info as page
-    views.'''
+    """displays long info about object. can also display long info as page
+    views."""
 
     def __init__(self, table_manager):
-        '''simply inits with a DiceTableManager'''
+        """simply inits with a DiceTableManager"""
         self._table = table_manager
         self._current_page = {'full_text': 1, 'weights_info': 1}
         self._lines_per_page = {'full_text': 1, 'weights_info': 1}
         self._pages = {'full_text': [''], 'weights_info': ['']}
 
     def _parse_info(self, key):
-        '''key = 'weights_info' or 'full_text'. preps text. returns new text'''
+        """key = 'weights_info' or 'full_text'. preps text. returns new text"""
         text = self._table.get_info(key).rstrip('\n')
         if key == 'weights_info':
             text = text.replace('a roll of ', '')
@@ -444,7 +444,7 @@ class InfoBox(object):
         return text
 
     def make_pages(self, key, lines_per_page):
-        '''makes a list of pages so that pages can be quickly referenced'''
+        """makes a list of pages so that pages can be quickly referenced"""
         text = self._parse_info(key)
         lines = text.split('\n')
         self._lines_per_page[key] = lines_per_page
@@ -458,10 +458,10 @@ class InfoBox(object):
             self._pages[key].append('\n'.join(lines))
 
     def display_current_page(self, key, lines_per_page):
-        '''key is 'full_text' or 'weights_info'.  lines_per_page = int > 1.
+        """key is 'full_text' or 'weights_info'.  lines_per_page = int > 1.
         checks if the number of pages changed, if so recalculates pages.
         current page uses modulo, so can loop through any values.
-        returns (page_text, current_page_number, total_pages_number).'''
+        returns (page_text, current_page_number, total_pages_number)."""
         if self._lines_per_page[key] != lines_per_page:
             self.make_pages(key, lines_per_page)
         total_pages = len(self._pages[key])
@@ -475,28 +475,28 @@ class InfoBox(object):
         return (page, page_num, total_pages)
 
     def display_next_page(self, key, lines_per_page):
-        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
         updates current_page += 1. loops from last to first page.
-        returns new self.display_current_page.'''
+        returns new self.display_current_page."""
         self._current_page[key] += 1
         return self.display_current_page(key, lines_per_page)
 
     def display_previous_page(self, key, lines_per_page):
-        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
         updates current_page += 1. loops from first to last page.
-        returns new self.display_current_page.'''
+        returns new self.display_current_page."""
         self._current_page[key] -= 1
         return self.display_current_page(key, lines_per_page)
 
     def display_chosen_page(self, page_number, key, lines_per_page):
-        '''lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
         self._current_page[key] = page_number
-        return self.display_current_page(key, lines_per_page)'''
+        return self.display_current_page(key, lines_per_page)"""
         self._current_page[key] = page_number
         return self.display_current_page(key, lines_per_page)
 
     def _general_info(self):
-        '''returns a string of some general info'''
+        """returns a string of some general info"""
         vals_min, vals_max = self._table.get_info('range')
         mean = self._table.get_info('mean')
         stddev = self._table.get_info('stddev')
@@ -507,9 +507,9 @@ class InfoBox(object):
         return text
 
     def display_paged(self, weights_lines, full_text_lines):
-        '''weights_lines and full_text_lines are ints > 1 = lines_per_page
+        """weights_lines and full_text_lines are ints > 1 = lines_per_page
         for weights_info and full_text.  updates pages and
-        returns [general_info, table_str, (weights_info), (full_text)]'''
+        returns [general_info, table_str, (weights_info), (full_text)]"""
         self.make_pages('weights_info', weights_lines)
         self.make_pages('full_text', full_text_lines)
         return [self._general_info(), self._table.get_info('text'),
@@ -517,8 +517,8 @@ class InfoBox(object):
                 self.display_current_page('full_text', full_text_lines)]
 
     def display(self):
-        '''returns [general_info, table_str, weights_info, full_text].
+        """returns [general_info, table_str, weights_info, full_text].
         here weights_info and full_text are not page_views.  this is for a
-        scrolling display.'''
+        scrolling display."""
         return [self._general_info(), self._table.get_info('text'),
                 self._parse_info('weights_info'), self._parse_info('full_text')]

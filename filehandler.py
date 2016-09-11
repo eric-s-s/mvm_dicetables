@@ -69,13 +69,13 @@ class SavedDiceTable(object):
     def is_empty(self):
         return self == SavedDiceTable.empty_object()
 
-    def verify_all_data(self):
+    def verify_all_types(self):
         msg = 'error:'
         msg += check_datum_for_types(self._text, (str,), ' invalid text value')
-        msg += check_iterables_in_iterable_for_type_sequence(self._tuple_list, [(int,), (int,)], ' invalid tuple list')
-        msg += check_iterables_in_iterable_for_type_sequence(self._dice_list, [(dt.ProtoDie,), (int,)],
+        msg += check_tuples_in_list_for_type_sequence(self._tuple_list, [(int,), (int,)], ' invalid tuple list')
+        msg += check_tuples_in_list_for_type_sequence(self._dice_list, [(dt.ProtoDie,), (int,)],
                                                              ' invalid dice list')
-        msg += check_iterables_in_iterable_for_types(self._graph_axes, [(int,), (float,)], ' invalid graph values')
+        msg += check_tuples_in_list_for_types(self._graph_axes, [(int,), (float,)], ' invalid graph values')
         if msg == 'error:':
             return ''
         else:
@@ -96,8 +96,8 @@ def check_datum_for_types(datum, data_types_tuple, error_msg):
     return ''
 
 
-def check_iterable_for_types(data_list, data_type_tuple, error_msg):
-    if not is_strictly_iterable(data_list):
+def check_list_or_tuple_for_types(data_list, data_type_tuple, error_msg):
+    if not is_list_or_tuple(data_list):
         return error_msg
     for datum in data_list:
         msg_result = check_datum_for_types(datum, data_type_tuple, 'error')
@@ -106,51 +106,40 @@ def check_iterable_for_types(data_list, data_type_tuple, error_msg):
     return ''
 
 
-def check_iterables_in_iterable_for_types(tuple_list, types_for_each_element, error_msg):
-    if not is_strictly_iterable(tuple_list):
+def check_tuples_in_list_for_types(tuple_list, types_for_each_element, error_msg):
+    if not is_list_or_tuple(tuple_list):
         return error_msg
-    if not iterable_and_types_same_len(tuple_list, types_for_each_element) and not is_empty_iterable(tuple_list):
+    if tuple_list and not iterable_and_types_same_len(tuple_list, types_for_each_element):
         return error_msg
     for index, element_tuple in enumerate(tuple_list):
-        msg_result = check_iterable_for_types(element_tuple, types_for_each_element[index], 'error')
+        msg_result = check_list_or_tuple_for_types(element_tuple, types_for_each_element[index], 'error')
         if msg_result == 'error':
             return error_msg
     return ''
 
 
-def check_iterables_in_iterable_for_type_sequence(tuple_list, data_types_within_each_tuple, error_msg):
+def check_tuples_in_list_for_type_sequence(tuple_list, data_types_within_each_tuple, error_msg):
     """checks each element of tuple against data_types in list returns error or '' """
     try:
-        iterable_uniform_tuples = zip(*tuple_list)
+        list_of_uniform_tuples = list(zip(*tuple_list))
     except TypeError:
         return error_msg
-    return check_iterables_in_iterable_for_types(iterable_uniform_tuples, data_types_within_each_tuple, error_msg)
+    return check_tuples_in_list_for_types(list_of_uniform_tuples, data_types_within_each_tuple, error_msg)
 
 
-def is_strictly_iterable(iterable):
-    return hasattr(iterable, '__iter__')
+def is_list_or_tuple(iterable):
+    return isinstance(iterable, (list, tuple))
 
 
 def iterable_and_types_same_len(iterable, types_list):
     return len(iterable) == len(types_list)
 
 
-def is_empty_iterable(iterable_of_iterables):
-    if not is_strictly_iterable(iterable_of_iterables):
-        return False
-    if not iterable_of_iterables:
-        return True
-    answer = True
-    for element in iterable_of_iterables:
-        answer = answer and is_empty_iterable(element)
-    return answer
-
-
 def check_saved_tables_within_array(save_data_array):
     for data_obj in save_data_array:
         if not isinstance(data_obj, SavedDiceTable):
             return 'error: wrong object in array'
-        msg = data_obj.verify_all_data()
+        msg = data_obj.verify_all_types()
         if msg:
             return msg
     return ''

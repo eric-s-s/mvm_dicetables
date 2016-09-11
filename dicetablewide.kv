@@ -290,16 +290,16 @@
             valign: 'middle'
             on_press: self.delay(root.graph_it)
         Button:
-            id: clear_selected
+            id: delete_selected
             text: 'clear selected'
             text_size: self.size
             size: self.texture_size
             size_hint: 0.33, 1
             halign: 'center'
             valign: 'middle'
-            on_press: root.clear_selected()
+            on_press: root.delete_selected()
         Button:
-            id: clear_all
+            id: delete_all
             text: 'clear history'
             text_size: self.size
             size: self.texture_size

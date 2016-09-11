@@ -561,7 +561,7 @@ class GraphBox(BoxLayout):
     '''buttons for making graphs.  parent app is what's called for dice actions
     and info updates. all calls are self.parent_app.request_something(*args).'''
     view_model = ObjectProperty(mvm.GraphBox(mvm.DiceTableManager(),
-                                             mvm.SavedTablesManager(), True))
+                                             mvm.SavedTables(), True))
     def __init__(self, **kwargs):
         super(GraphBox, self).__init__(**kwargs)
         self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
@@ -630,7 +630,7 @@ class GraphBox(BoxLayout):
     def clear_all(self, btn):
         '''clear graph history'''
         self.confirm.dismiss()
-        self.view_model.clear_all()
+        self.view_model.delete_all()
         self.update()
     def clear_selected(self):
         '''clear selected checked items from graph history'''
@@ -639,7 +639,7 @@ class GraphBox(BoxLayout):
             if isinstance(item, PlotCheckBox):
                 if item.active:
                     to_clear.append((item.text, item.tuple_list))
-        self.view_model.clear_selected(to_clear)
+        self.view_model.delete_selected(to_clear)
         self.update()
 
 
@@ -767,7 +767,7 @@ class DicePlatform(TabbedPanel):
     def __init__(self, **kwargs):
         super(DicePlatform, self).__init__(**kwargs)
         table = mvm.DiceTableManager()
-        history = mvm.SavedTablesManager()
+        history = mvm.SavedTables()
         self._read_hist_msg = history.reload_from_file()
         change = mvm.ChangeBox(table)
         add = mvm.AddBox(table)
