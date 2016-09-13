@@ -1,15 +1,14 @@
-'''for sending and retrieving main info to file. '''
+"""for sending and retrieving main info to file. """
 
 # numpy python2 uses cPickle and numpy in python3 uses pickle
 from sys import version_info
+import dicetables as dt
+import numpy as np
 
 if version_info[0] > 2:
     from pickle import UnpicklingError
 else:
     from cPickle import UnpicklingError
-
-import dicetables as dt
-import numpy as np
 
 
 class SavedDiceTable(object):
@@ -74,7 +73,7 @@ class SavedDiceTable(object):
         msg += check_datum_for_types(self._text, (str,), ' invalid text value')
         msg += check_tuples_in_list_for_type_sequence(self._tuple_list, [(int,), (int,)], ' invalid tuple list')
         msg += check_tuples_in_list_for_type_sequence(self._dice_list, [(dt.ProtoDie,), (int,)],
-                                                             ' invalid dice list')
+                                                      ' invalid dice list')
         msg += check_tuples_in_list_for_types(self._graph_axes, [(int,), (float,)], ' invalid graph values')
         if msg == 'error:':
             return ''

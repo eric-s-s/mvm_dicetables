@@ -1,5 +1,5 @@
 # pylint: disable=missing-docstring, invalid-name, too-many-public-methods
-'''tests for the longintmath.py module'''
+"""tests for the filehandler.py module"""
 from __future__ import absolute_import
 
 import os

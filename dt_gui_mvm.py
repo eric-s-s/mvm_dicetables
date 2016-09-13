@@ -14,14 +14,18 @@ import filehandler as fh
 
 
 class DiceTableManager(object):
-    """an object that controls the table"""
+    """easy management of a DiceTable"""
 
     def __init__(self):
-        """just a shell for table"""
         self._table = dt.DiceTable()
 
     def get_info(self, request):
-        """returns requested info to child widget"""
+        """
+        :param request: str
+            options are 'range', 'mean', 'stddev', 'text', 'text_one_line',
+            'weights_info', 'dice_list', 'full_text', 'tuple_list'
+        :return: various
+        """
         requests = {'range': [self._table.values_range, ()],
                     'mean': [self._table.mean, ()],
                     'stddev': [self._table.stddev, ()],
@@ -35,7 +39,14 @@ class DiceTableManager(object):
         return command(*args)
 
     def get_stats(self, stat_list):
-        """returns stat info from a list of ints"""
+        """
+
+        :param stat_list: list on ints
+        :return: list of strings
+            ['input list as string', 'total combinations',
+            '# of combinations in input', '1 in how many chance',
+            'pct chance']
+        """
         stat_info = list(dt.stats(self._table, stat_list))
         if stat_info[3] != 'infinity' and stat_info[4] == '0.0':
             tiny_percent = Decimal('1.0e+2') / Decimal(stat_info[3])
@@ -43,49 +54,46 @@ class DiceTableManager(object):
         return tuple(stat_info)
 
     def get_obj_to_save(self):
-        """converts the table into a PlotObject"""
         text = self.get_info('text_one_line')
         graph_data = dt.graph_pts(self._table)
         tuple_list = self.get_info('tuple_list')
         dice_list = self.get_info('dice_list')
         return fh.SavedDiceTable(text, tuple_list, dice_list, graph_data)
 
-    def request_reload(self, data_obj):
-        """loads data_obj as the main die table"""
-        self._table = data_obj.dice_table
+    def request_reload(self, saved_dice_table):
+        self._table = saved_dice_table.dice_table
 
     def request_add(self, number, die):
-        """adds dice to table. number is int>=0. die is child of dt.ProtoDie"""
         self._table.add_die(number, die)
 
     def request_remove(self, number, die):
-        """safely removes dice from table. if too many removed, removes all of
-        that kind of dice. number is int>=0. die is child of dt.ProtoDie."""
         max_allowed = self._table.number_of_dice(die)
         self._table.remove_die(min(number, max_allowed), die)
 
     def request_reset(self):
-        """reset dice table"""
         self._table = dt.DiceTable()
 
 
 class SavedTables(object):
-    """keeps track of plot history and writing"""
+    """manages all filehandler.SavedDiceTable
+
+    read and write from 'save_data.npy' """
 
     def __init__(self):
         self._saved_tables = np.array([], dtype=object)
 
-    def save_new(self, new_obj):
-        """adds a new plot obj. will not add empty table or duplicates"""
-        if not new_obj.is_empty() and new_obj not in self._saved_tables:
-            self._saved_tables = np.append(self._saved_tables, new_obj)
+    def save_new(self, saved_dice_table):
+        """won't save empties or duplicates"""
+        if not saved_dice_table.is_empty() and saved_dice_table not in self._saved_tables:
+            self._saved_tables = np.append(self._saved_tables, saved_dice_table)
 
     def has_requested(self, text, tuple_list):
+        """
+        :return: bool
+        """
         return fh.SavedDiceTable(text, tuple_list, [], []) in self._saved_tables
 
     def get_requested(self, text, tuple_list):
-        """checks to see if any of the objects in history have tuple_list and
-        text. returns that object or if not there, returns empty dict."""
         dummy_saved_table = fh.SavedDiceTable(text, tuple_list, [], [])
         for data_obj in self._saved_tables:
             if dummy_saved_table == data_obj:
@@ -93,64 +101,51 @@ class SavedTables(object):
         return fh.SavedDiceTable.empty_object()
 
     def get_all(self):
+        """
+        :return: list
+        """
         return self._saved_tables.tolist()
 
     def get_labels(self):
-        """returns a list of tuples (plot_obj['text'], plot_obj['tuple_list'])
-        for each plot_obj in history"""
+        """
+        :return: [(saved_table.text., saved_table.tuple_list) ... ]
+        """
         labels = []
-        for obj in self._saved_tables:
-            labels.append((obj.text, obj.tuple_list))
+        for saved_table in self._saved_tables:
+            labels.append((saved_table.text, saved_table.tuple_list))
         return labels
 
-    def get_graphs(self, get_axes_not_pts=True):
-        """returns ((x_range of history), (y_range of history),
-                    [(graph_text, [graph_values]), -> for each obj in history])
-                    :param get_axes_not_pts:
-        """
-        list_of_graphs = []
-        x_range = y_range = (float('inf'), float('-inf'))
-        for obj in self._saved_tables:
-            x_range = combine_ranges(obj.x_range, x_range)
-            y_range = combine_ranges(obj.y_range, y_range)
-            if get_axes_not_pts:
-                graph_data = obj.graph_axes
-            else:
-                graph_data = obj.graph_pts
-            list_of_graphs.append((obj.text, graph_data))
-        return x_range, y_range, list_of_graphs
-
     def delete_all(self):
-        """clear graph history"""
         self._saved_tables = np.array([], dtype=object)
 
     def delete_requested(self, text_tuple_list_pairs):
         exclude_from_new = [fh.SavedDiceTable(text, tuple_list, [], [])
                             for text, tuple_list in text_tuple_list_pairs]
         new_data_array = np.array([], dtype=object)
-        for obj in self._saved_tables:
-            if obj not in exclude_from_new:
-                new_data_array = np.append(new_data_array, obj)
-        self._saved_tables = new_data_array
-
-    def delete_selected_old(self, obj_list):
-        """clear listed items from graph history. obj_list is a list of plot
-        objects"""
-        new_data_array = np.array([], dtype=object)
-        for obj in self._saved_tables:
-            if obj not in obj_list:
-                new_data_array = np.append(new_data_array, obj)
+        for saved_table in self._saved_tables:
+            if saved_table not in exclude_from_new:
+                new_data_array = np.append(new_data_array, saved_table)
         self._saved_tables = new_data_array
 
     def write_to_file(self):
-        """overwrites graph history to 'numpy_history.npy' """
+        """overwrites old save to 'save_data.npy' """
         fh.write_saved_tables_array(self._saved_tables)
 
     def reload_from_file(self):
-        """reads from 'numpy_history.npy' and checks for errors. returns a msg
-        that is either "ok" or begins with "error" """
+        """reads from 'save_data.npy' and checks for errors.
+
+        :return: msg = 'ok', 'ok: no saved data', or 'error: ...'
+        """
         msg, self._saved_tables = fh.read_saved_tables_array()
         return msg
+
+
+def remove_duplicates_from_list(some_list):
+    no_duplicates = []
+    for element in some_list:
+        if element not in no_duplicates:
+            no_duplicates.append(element)
+    return no_duplicates
 
 
 class CurrentAndSavedInterface(object):
@@ -181,8 +176,9 @@ class CurrentAndSavedInterface(object):
         return self.get_label_current() == ('', [(0, 1)])
 
     def get_requested(self, text_tuple_list_pairs):
+        no_duplicates = remove_duplicates_from_list(text_tuple_list_pairs)
         requested = []
-        for text, tuple_list in text_tuple_list_pairs:
+        for text, tuple_list in no_duplicates:
             if self._saved_tables.has_requested(text, tuple_list):
                 requested.append(self._saved_tables.get_requested(text, tuple_list))
             elif self.is_current_table(text, tuple_list):
@@ -202,6 +198,11 @@ class CurrentAndSavedInterface(object):
         self._saved_tables.delete_requested(text_tuple_list_pairs)
         self._saved_tables.write_to_file()
 
+    def reload_requested_as_current(self, text, tuple_list):
+        to_reload = self._saved_tables.get_requested(text, tuple_list)
+        if not to_reload.is_empty():
+            self._current_table.request_reload(to_reload)
+
 
 def combine_ranges(range_1, range_2):
     new_range = (min(range_2[0], range_1[0]),
@@ -210,6 +211,10 @@ def combine_ranges(range_1, range_2):
 
 
 def get_graphs(saved_table_list, get_axes_not_pts=True):
+    """
+    :return: (x_range tuple, y_range tuple,
+        [ ('obj title', [obj graph data]) , (...)]
+    """
     list_of_graphs = []
     x_range = y_range = (float('inf'), float('-inf'))
     for saved_table in saved_table_list:
@@ -223,109 +228,93 @@ def get_graphs(saved_table_list, get_axes_not_pts=True):
     return x_range, y_range, list_of_graphs
 
 
-
 class GraphBox(object):
-    """manages graphing and history"""
-
+    """now a wrapper for CurrentSavedInterface and function: get_graphs"""
     def __init__(self, table_manager, saved_tables, get_axes_not_pts):
-        """history is a SavedTables, table_manager is a DiceTableManager.
-        get_axes_not_pts is a boolean - True if the graph uses axes. False if the graph
-        uses pts."""
-        self._saved_tables = saved_tables
-        self._table = table_manager
+        """
+        :param table_manager: DiceTableManager
+        :param saved_tables: SavedTables
+        :param get_axes_not_pts: bool"""
+        self.interface = CurrentAndSavedInterface(table_manager, saved_tables)
         self._get_axes_not_pts = get_axes_not_pts
 
     def get_and_save_current(self):
-        new_to_save = self._table.get_obj_to_save()
-        self._saved_tables.save_new(new_to_save)
-        self._saved_tables.write_to_file()
-        return new_to_save
-
-    def verify_then_get_current(self, text, tuple_list):
-        if (text, tuple_list) == self.display_current_table():
-            return self.get_and_save_current()
-        return fh.SavedDiceTable.empty_object()
+        return self.interface.get_and_save_current()
 
     def get_requested_graphs(self, text_tuple_list_pairs):
-        """gets passed a list of tuples containing (text, tuple_list).
-        text=str of table, tuple_list=[(roll=int, val=int), ...]
-        returns ( (x_range), (y_range), [(text, [graphing_values])...] )"""
-        manage_empties_and_duplicates = SavedTables()
-        for text, tuple_list in text_tuple_list_pairs:
-            to_plot = self._saved_tables.get_requested(text, tuple_list)
-            if to_plot.is_empty():
-                to_plot = self.verify_then_get_current(text, tuple_list)
-            manage_empties_and_duplicates.save_new(to_plot)
-        return manage_empties_and_duplicates.get_graphs(self._get_axes_not_pts)
+        """
+        :returns: ( (x_range), (y_range), [(text, [graphing_values])...] )
+        """
+        return get_graphs(self.interface.get_requested(text_tuple_list_pairs), self._get_axes_not_pts)
+
+    def get_all_graphs(self):
+        """
+        :returns: ( (x_range), (y_range), [(text, [graphing_values])...] )
+        """
+        return get_graphs(self.interface.get_all(), self._get_axes_not_pts)
 
     def delete_requested(self, text_tuple_list_pairs):
-        """gets passed a list of tuples containing 'tuple_list' and txt.
-        'tuple_list' is the 'tuple_list' key in a plot object or a
-        tuple_list of a table. clears the objects from history and writes
-        the history"""
-        remove = [fh.SavedDiceTable(text, tuple_list, [], [])
-                  for text, tuple_list in text_tuple_list_pairs]
-        self._saved_tables.delete_selected_old(remove)
-        self._saved_tables.write_to_file()
+        self.interface.delete_requested(text_tuple_list_pairs)
 
     def delete_all(self):
-        """clears the history"""
-        self._saved_tables.delete_all()
-        self._saved_tables.write_to_file()
+        self.interface.delete_all()
 
     def display_current_table(self):
-        return self._table.get_info('text_one_line'), self._table.get_info('tuple_list')
+        return self.interface.get_label_current()
 
     def display_saved_tables(self):
-        return self._saved_tables.get_labels()
+        return self.interface.get_label_saved()
 
     def display(self):
-        """returns a tuple for a display output.
-        (table_manager_text_and_tuple_list, history_manager.get_labels())"""
-        return self.display_current_table(), self.display_saved_tables()
+        """
+
+        :return: ( (current text, current tuple_list), [(save1 txt, save1 tuple_list), ..] )
+        """
+        return self.interface.get_labels()
 
     def reload_saved_dice_table(self, text, tuple_list):
-        """takes a text, tuple_list and reloads that to table_manager"""
-        data_obj = self._saved_tables.get_requested(text, tuple_list)
-        if not data_obj.is_empty():
-            self._table.request_reload(data_obj)
+        self.interface.reload_requested_as_current(text, tuple_list)
 
 
 def get_die_roll_details(die):
     details = '{} rolls:'.format(die)
-    lengths_of_strings_for_rolls = [len(str(pair[0])) for pair in die.tuple_list()]
-    max_number_length = max(lengths_of_strings_for_rolls)
+    sting_length_for_rolls = [len(str(pair[0])) for pair in die.tuple_list()]
+    rjust_roll_string = max(sting_length_for_rolls)
     for roll, freq in die.tuple_list():
-        details += '\n  {:>{}} with frequency: {}'.format(roll, max_number_length, freq)
+        details += '\n  {:>{}} with frequency: {}'.format(roll, rjust_roll_string, freq)
     return details
 
 
-def get_add_and_remove_labels(die, number, enable_remove):
-    """returns a list of texts in appropriate order for display on buttons
-    and labels. die is a child of dt.ProtoDie. number is an int>=0.
-    enable_remove is a bool. see AddBox.display_die and ChangeBox.display"""
-    display = []
-    add_choices = get_add_list(die)
-    if enable_remove:
-        for num in add_choices[::-1]:
-            display.append(str(-1 * num))
-    if number == 0:
-        display.append(str(die))
-    else:
-        display.append(die.multiply_str(number))
+def get_add_and_remove_labels(die, number_of_dice, enable_remove):
+    """
+    get_add_and_remove_labels(dt.Die(50), 2, True)
 
-    for num in add_choices:
-        display.append('{:+}'.format(num))
+    :return: ['-10', '-5', '-1', '2D50', '+1', '+5', '+10']
+    """
+    display = []
+    add_choices = get_add_choices(die)
+    if enable_remove:
+        display += ['-{}'.format(number) for number in add_choices[::-1]]
+
+    display += [get_die_label(die, number_of_dice)]
+
+    display += ['{:+}'.format(number) for number in add_choices]
     return display
 
 
-def get_add_list(die):
+def get_add_choices(die):
     max_size_for_add_choice = [(10000, 1), (100, 5), (50, 10), (25, 50), (16, 100), (6, 500)]
     available_choices = []
     for max_size, add_choice in max_size_for_add_choice:
         if die.get_size() <= max_size:
             available_choices.append(add_choice)
     return available_choices
+
+
+def get_die_label(die, number_of_dice):
+    if number_of_dice:
+        return die.multiply_str(number_of_dice)
+    return str(die)
 
 
 class ChangeBox(object):
@@ -336,10 +325,7 @@ class ChangeBox(object):
         self._table = table_manager
 
     def get_dice_details(self):
-        info_list = []
-        for pair in self._table.get_info('dice_list'):
-            info_list.append(get_die_roll_details(pair[0]))
-        return info_list
+        return [get_die_roll_details(pair[0]) for pair in self._table.get_info('dice_list')]
 
     def display(self):
         """returns a list of tuples (list_of_button/labels, die associated with
@@ -387,7 +373,7 @@ def make_die(size, modifier, multiplier, dictionary):
 def is_dictionary_for_weighted_die(dictionary):
     if sum(dictionary.values()) != 0:
         for value in dictionary.values():
-            if not value == 1:
+            if value != 1:
                 return True
     return False
 
@@ -625,7 +611,7 @@ if __name__ == '__main__':
     saved.save_new(table.get_obj_to_save())
     saved.save_new(table.get_obj_to_save())
     test_text = table.get_info('text_one_line')
-    tuples = table.get_info('tuple_list')
+    test_tuples = table.get_info('tuple_list')
     txt_tpls = saved.get_labels() + [('hi', [(1, 2)])]
 
 
@@ -640,20 +626,20 @@ if __name__ == '__main__':
         return out
 
 
-    text_tuples = [(str(num), [(num, num)]) for num in range(100)]
+    test_text_tuples = [(str(num), [(num, num)]) for num in range(100)]
 
-    print('has : ', timer(1000, saved.has_requested, test_text, tuples))
+    print('has : ', timer(1000, saved.has_requested, test_text, test_tuples))
     print('has not: ', timer(1000, saved.has_requested, test_text, [(1, 2)]))
-    print('get : ', timer(1000, saved.get_requested, test_text, tuples))
+    print('get : ', timer(1000, saved.get_requested, test_text, test_tuples))
     print('get not: ', timer(1000, saved.get_requested, test_text, [(1, 2)]))
     print('get all: ', timer(1000, saved.get_all))
     print('get labels: ', timer(1000, saved.get_labels))
-    print('comp: ', timer(1000, list_comp, text_tuples))
-    print('for: ', timer(1000, list_for, text_tuples))
-    print('get tables: ', timer(1000, interface.get_requested_saved_dice_tables, txt_tpls))
-    for obj in interface.get_requested_saved_dice_tables(txt_tpls):
+    print('comp: ', timer(1000, list_comp, test_text_tuples))
+    print('for: ', timer(1000, list_for, test_text_tuples))
+    print('get tables: ', timer(1000, interface.get_requested, txt_tpls))
+    for obj in interface.get_requested(txt_tpls):
         print(obj.is_empty())
-    x = interface.get_requested_saved_dice_tables(txt_tpls)
+    x = interface.get_requested(txt_tpls)
     print()
     while x:
         tst = x.pop()
