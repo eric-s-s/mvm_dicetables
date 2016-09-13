@@ -4,6 +4,10 @@ from __future__ import absolute_import
 
 from decimal import Decimal
 
+try:
+    from itertools import izip_longest as zip_longest
+except ImportError:
+    from itertools import zip_longest
 import dicetables as dt
 import numpy as np
 import filehandler as fh
@@ -76,7 +80,10 @@ class SavedTables(object):
         if not new_obj.is_empty() and new_obj not in self._saved_tables:
             self._saved_tables = np.append(self._saved_tables, new_obj)
 
-    def get_old(self, text, tuple_list):
+    def has_requested(self, text, tuple_list):
+        return fh.SavedDiceTable(text, tuple_list, [], []) in self._saved_tables
+
+    def get_requested(self, text, tuple_list):
         """checks to see if any of the objects in history have tuple_list and
         text. returns that object or if not there, returns empty dict."""
         dummy_saved_table = fh.SavedDiceTable(text, tuple_list, [], [])
@@ -84,6 +91,9 @@ class SavedTables(object):
             if dummy_saved_table == data_obj:
                 return data_obj
         return fh.SavedDiceTable.empty_object()
+
+    def get_all(self):
+        return self._saved_tables.tolist()
 
     def get_labels(self):
         """returns a list of tuples (plot_obj['text'], plot_obj['tuple_list'])
@@ -114,7 +124,16 @@ class SavedTables(object):
         """clear graph history"""
         self._saved_tables = np.array([], dtype=object)
 
-    def delete_selected(self, obj_list):
+    def delete_requested(self, text_tuple_list_pairs):
+        exclude_from_new = [fh.SavedDiceTable(text, tuple_list, [], [])
+                            for text, tuple_list in text_tuple_list_pairs]
+        new_data_array = np.array([], dtype=object)
+        for obj in self._saved_tables:
+            if obj not in exclude_from_new:
+                new_data_array = np.append(new_data_array, obj)
+        self._saved_tables = new_data_array
+
+    def delete_selected_old(self, obj_list):
         """clear listed items from graph history. obj_list is a list of plot
         objects"""
         new_data_array = np.array([], dtype=object)
@@ -134,10 +153,75 @@ class SavedTables(object):
         return msg
 
 
+class CurrentAndSavedInterface(object):
+    def __init__(self, table_manager, saved_tables):
+        self._saved_tables = saved_tables
+        self._current_table = table_manager
+
+    def get_and_save_current(self):
+        new_to_save = self._current_table.get_obj_to_save()
+        self._saved_tables.save_new(new_to_save)
+        self._saved_tables.write_to_file()
+        return new_to_save
+
+    def get_label_current(self):
+        return (self._current_table.get_info('text_one_line'),
+                self._current_table.get_info('tuple_list'))
+
+    def get_label_saved(self):
+        return self._saved_tables.get_labels()
+
+    def get_labels(self):
+        return self.get_label_current(), self.get_label_saved()
+
+    def is_current_table(self, text, tuple_list):
+        return (text, tuple_list) == self.get_label_current()
+
+    def current_is_empty(self):
+        return self.get_label_current() == ('', [(0, 1)])
+
+    def get_requested(self, text_tuple_list_pairs):
+        requested = []
+        for text, tuple_list in text_tuple_list_pairs:
+            if self._saved_tables.has_requested(text, tuple_list):
+                requested.append(self._saved_tables.get_requested(text, tuple_list))
+            elif self.is_current_table(text, tuple_list):
+                requested.append(self.get_and_save_current())
+        return requested
+
+    def get_all(self):
+        if not self.current_is_empty() and not self._saved_tables.has_requested(*self.get_label_current()):
+            self.get_and_save_current()
+        return self._saved_tables.get_all()
+
+    def delete_all(self):
+        self._saved_tables.delete_all()
+        self._saved_tables.write_to_file()
+
+    def delete_requested(self, text_tuple_list_pairs):
+        self._saved_tables.delete_requested(text_tuple_list_pairs)
+        self._saved_tables.write_to_file()
+
+
 def combine_ranges(range_1, range_2):
     new_range = (min(range_2[0], range_1[0]),
                  max(range_2[1], range_1[1]))
     return new_range
+
+
+def get_graphs(saved_table_list, get_axes_not_pts=True):
+    list_of_graphs = []
+    x_range = y_range = (float('inf'), float('-inf'))
+    for saved_table in saved_table_list:
+        x_range = combine_ranges(saved_table.x_range, x_range)
+        y_range = combine_ranges(saved_table.y_range, y_range)
+        if get_axes_not_pts:
+            graph_data = saved_table.graph_axes
+        else:
+            graph_data = saved_table.graph_pts
+        list_of_graphs.append((saved_table.text, graph_data))
+    return x_range, y_range, list_of_graphs
+
 
 
 class GraphBox(object):
@@ -151,7 +235,7 @@ class GraphBox(object):
         self._table = table_manager
         self._get_axes_not_pts = get_axes_not_pts
 
-    def get_and_save_current_table(self):
+    def get_and_save_current(self):
         new_to_save = self._table.get_obj_to_save()
         self._saved_tables.save_new(new_to_save)
         self._saved_tables.write_to_file()
@@ -159,7 +243,7 @@ class GraphBox(object):
 
     def verify_then_get_current(self, text, tuple_list):
         if (text, tuple_list) == self.display_current_table():
-            return self.get_and_save_current_table()
+            return self.get_and_save_current()
         return fh.SavedDiceTable.empty_object()
 
     def get_requested_graphs(self, text_tuple_list_pairs):
@@ -168,21 +252,20 @@ class GraphBox(object):
         returns ( (x_range), (y_range), [(text, [graphing_values])...] )"""
         manage_empties_and_duplicates = SavedTables()
         for text, tuple_list in text_tuple_list_pairs:
-            to_plot = self._saved_tables.get_old(text, tuple_list)
+            to_plot = self._saved_tables.get_requested(text, tuple_list)
             if to_plot.is_empty():
                 to_plot = self.verify_then_get_current(text, tuple_list)
             manage_empties_and_duplicates.save_new(to_plot)
         return manage_empties_and_duplicates.get_graphs(self._get_axes_not_pts)
 
-    def delete_selected(self, text_tuple_list_pairs):
+    def delete_requested(self, text_tuple_list_pairs):
         """gets passed a list of tuples containing 'tuple_list' and txt.
         'tuple_list' is the 'tuple_list' key in a plot object or a
         tuple_list of a table. clears the objects from history and writes
         the history"""
-        remove = []
-        for text, tuple_list in text_tuple_list_pairs:
-            remove.append(fh.SavedDiceTable(text, tuple_list, [], []))
-        self._saved_tables.delete_selected(remove)
+        remove = [fh.SavedDiceTable(text, tuple_list, [], [])
+                  for text, tuple_list in text_tuple_list_pairs]
+        self._saved_tables.delete_selected_old(remove)
         self._saved_tables.write_to_file()
 
     def delete_all(self):
@@ -203,7 +286,7 @@ class GraphBox(object):
 
     def reload_saved_dice_table(self, text, tuple_list):
         """takes a text, tuple_list and reloads that to table_manager"""
-        data_obj = self._saved_tables.get_old(text, tuple_list)
+        data_obj = self._saved_tables.get_requested(text, tuple_list)
         if not data_obj.is_empty():
             self._table.request_reload(data_obj)
 
@@ -445,17 +528,12 @@ class InfoBox(object):
 
     def make_pages(self, key, lines_per_page):
         """makes a list of pages so that pages can be quickly referenced"""
+        self._lines_per_page[key] = lines_per_page
         text = self._parse_info(key)
         lines = text.split('\n')
-        self._lines_per_page[key] = lines_per_page
-        self._pages[key] = []
-        while len(lines) > lines_per_page:
-            self._pages[key].append('\n'.join(lines[:lines_per_page]))
-            lines = lines[lines_per_page:]
-        for _ in range(lines_per_page - len(lines)):
-            lines.append(' ')
-        if lines:
-            self._pages[key].append('\n'.join(lines))
+        grouping_into_pages_tool = [iter(lines)] * lines_per_page
+        grouped_lines = zip_longest(*grouping_into_pages_tool, fillvalue=' ')
+        self._pages[key] = ['\n'.join(page) for page in grouped_lines]
 
     def display_current_page(self, key, lines_per_page):
         """key is 'full_text' or 'weights_info'.  lines_per_page = int > 1.
@@ -472,7 +550,7 @@ class InfoBox(object):
             page_num = total_pages
         page = self._pages[key][page_num - 1]
         self._current_page[key] = page_num
-        return (page, page_num, total_pages)
+        return page, page_num, total_pages
 
     def display_next_page(self, key, lines_per_page):
         """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
@@ -522,3 +600,61 @@ class InfoBox(object):
         scrolling display."""
         return [self._general_info(), self._table.get_info('text'),
                 self._parse_info('weights_info'), self._parse_info('full_text')]
+
+
+if __name__ == '__main__':
+    import time
+
+
+    def timer(times, func, *args):
+        start = time.clock()
+        for _ in range(times):
+            func(*args)
+        return time.clock() - start
+        # 0.23, 0.16   0.16,0.14
+
+
+    table = DiceTableManager()
+    saved = SavedTables()
+    info = InfoBox(table)
+    interface = CurrentAndSavedInterface(table, saved)
+    for _ in range(10):
+        saved.save_new(table.get_obj_to_save())
+        table.request_add(100, dt.Die(2))
+
+    saved.save_new(table.get_obj_to_save())
+    saved.save_new(table.get_obj_to_save())
+    test_text = table.get_info('text_one_line')
+    tuples = table.get_info('tuple_list')
+    txt_tpls = saved.get_labels() + [('hi', [(1, 2)])]
+
+
+    def list_comp(text_tuples):
+        return [fh.SavedDiceTable(text, tuples, [], []) for text, tuples in text_tuples]
+
+
+    def list_for(text_tuples):
+        out = []
+        for text, tuples in text_tuples:
+            out.append(fh.SavedDiceTable(text, tuples, [], []))
+        return out
+
+
+    text_tuples = [(str(num), [(num, num)]) for num in range(100)]
+
+    print('has : ', timer(1000, saved.has_requested, test_text, tuples))
+    print('has not: ', timer(1000, saved.has_requested, test_text, [(1, 2)]))
+    print('get : ', timer(1000, saved.get_requested, test_text, tuples))
+    print('get not: ', timer(1000, saved.get_requested, test_text, [(1, 2)]))
+    print('get all: ', timer(1000, saved.get_all))
+    print('get labels: ', timer(1000, saved.get_labels))
+    print('comp: ', timer(1000, list_comp, text_tuples))
+    print('for: ', timer(1000, list_for, text_tuples))
+    print('get tables: ', timer(1000, interface.get_requested_saved_dice_tables, txt_tpls))
+    for obj in interface.get_requested_saved_dice_tables(txt_tpls):
+        print(obj.is_empty())
+    x = interface.get_requested_saved_dice_tables(txt_tpls)
+    print()
+    while x:
+        tst = x.pop()
+        print(tst in x)

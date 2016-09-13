@@ -635,7 +635,7 @@ class GraphBox(BoxLayout):
             if isinstance(item, PlotCheckBox):
                 if item.active:
                     to_clear.append((item.text, item.tuple_list))
-        self.view_model.delete_selected(to_clear)
+        self.view_model.delete_requested(to_clear)
         self.update()
 
 

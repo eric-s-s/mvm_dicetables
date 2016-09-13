@@ -524,7 +524,7 @@ class GraphMenu(object):
         self.master.do_update()
     def save(self):
         '''saves the current table in history'''
-        self.view_model.get_and_save_current_table()
+        self.view_model.get_and_save_current()
         self.pack_reloader()
     def graph_current(self):
         '''graphs the current table and saves to history'''
@@ -573,10 +573,10 @@ class GraphMenu(object):
     def clear_selected(self, text_tuples_lst):
         '''gets passed a list of (text, tuple_list).  clears those tables from
         history'''
-        self.view_model.delete_selected(text_tuples_lst)
+        self.view_model.delete_requested(text_tuples_lst)
         self.pack_reloader()
     def edit_hist(self):
-        '''calls a popup to get a list for self.delete_selected'''
+        '''calls a popup to get a list for self.delete_requested'''
         if self.view_model.display()[1]:
             HistoryChooser(self, partial(self.clear_selected),
                            'Clear\nSelected')
