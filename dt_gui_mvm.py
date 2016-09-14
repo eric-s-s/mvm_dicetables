@@ -14,29 +14,57 @@ import filehandler as fh
 
 
 class DiceTableManager(object):
-    """easy management of a DiceTable"""
+    """easy management of a DiceTable
+
+    :properties: stddev, mean, range, title\n
+        title_one_line, full_text\n
+        weights_info, tuple_list, dice_list"""
 
     def __init__(self):
         self._table = dt.DiceTable()
 
-    def get_info(self, request):
-        """
-        :param request: str
-            options are 'range', 'mean', 'stddev', 'text', 'text_one_line',
-            'weights_info', 'dice_list', 'full_text', 'tuple_list'
-        :return: various
-        """
-        requests = {'range': [self._table.values_range, ()],
-                    'mean': [self._table.mean, ()],
-                    'stddev': [self._table.stddev, ()],
-                    'text': [str, (self._table,)],
-                    'text_one_line': [str(self._table).replace, ('\n', ' \\ ')],
-                    'weights_info': [self._table.weights_info, ()],
-                    'dice_list': [self._table.get_list, ()],
-                    'full_text': [dt.full_table_string, (self._table,)],
-                    'tuple_list': [self._table.frequency_all, ()]}
-        command, args = requests[request]
-        return command(*args)
+    @property
+    def stddev(self):
+        return self._table.stddev()
+
+    @property
+    def mean(self):
+        return self._table.mean()
+
+    @property
+    def range(self):
+        return self._table.values_range()
+
+    @property
+    def title(self):
+        return str(self._table)
+
+    @property
+    def title_one_line(self):
+        return str(self._table).replace('\n', ' \\ ')
+
+    @property
+    def full_text(self):
+        return dt.full_table_string(self._table)
+
+    @property
+    def weights_info(self):
+        return self._table.weights_info()
+
+    @property
+    def dice_list(self):
+        return self._table.get_list()
+
+    @property
+    def tuple_list(self):
+        return self._table.frequency_all()
+
+    def get_range_stats_text(self):
+        info_text = (
+            'the range of numbers is {:,}-{:,}\n'.format(*self.range) +
+            'the mean is {:,}\nthe stddev is {}'.format(round(self.mean, 4), self.stddev)
+        )
+        return info_text
 
     def get_stats(self, stat_list):
         """
@@ -54,10 +82,10 @@ class DiceTableManager(object):
         return tuple(stat_info)
 
     def get_obj_to_save(self):
-        text = self.get_info('text_one_line')
+        text = self.title_one_line
         graph_data = dt.graph_pts(self._table)
-        tuple_list = self.get_info('tuple_list')
-        dice_list = self.get_info('dice_list')
+        tuple_list = self.tuple_list
+        dice_list = self.dice_list
         return fh.SavedDiceTable(text, tuple_list, dice_list, graph_data)
 
     def request_reload(self, saved_dice_table):
@@ -160,8 +188,8 @@ class CurrentAndSavedInterface(object):
         return new_to_save
 
     def get_label_current(self):
-        return (self._current_table.get_info('text_one_line'),
-                self._current_table.get_info('tuple_list'))
+        return (self._current_table.title_one_line,
+                self._current_table.tuple_list)
 
     def get_label_saved(self):
         return self._saved_tables.get_labels()
@@ -230,6 +258,7 @@ def get_graphs(saved_table_list, get_axes_not_pts=True):
 
 class GraphBox(object):
     """now a wrapper for CurrentSavedInterface and function: get_graphs"""
+
     def __init__(self, table_manager, saved_tables, get_axes_not_pts):
         """
         :param table_manager: DiceTableManager
@@ -325,13 +354,16 @@ class ChangeBox(object):
         self._table = table_manager
 
     def get_dice_details(self):
-        return [get_die_roll_details(pair[0]) for pair in self._table.get_info('dice_list')]
+        return [get_die_roll_details(pair[0]) for pair in self._table.dice_list]
 
     def display(self):
-        """returns a list of tuples (list_of_button/labels, die associated with
-        that list) derived from current stat of table"""
+        """
+        for 3D100, ...other dice
+
+        :return: [ (['-5', '-1', '3D100', '+1', '+5'], dt.Die(100)), ...]
+        """
         display = []
-        for die, number in self._table.get_info('dice_list'):
+        for die, number in self._table.dice_list:
             add_rm_display = get_add_and_remove_labels(die, number, True)
             display.append((add_rm_display, die))
         return display
@@ -349,9 +381,11 @@ class ChangeBox(object):
 
 
 def make_die(size, modifier, multiplier, dictionary):
-    """makes the die into a new die. IMPORTANT!! dictionary supercedes size
-    so if size is 6 and dictionary is {1:1, 2:4}, then die is made according
-    to dictionary.  size-int>0, modifier-int, multiplier-int>=0."""
+    """
+    if is_dictionary_for_weigted_die, then dictionary supercedes size
+
+    :return: Die, ModDie, WeightedDie, ModWeightedDie or StrongDie
+    """
     if not dictionary:
         dictionary = {1: 0}
     dice = {'Die': dt.Die(size),
@@ -381,10 +415,10 @@ def is_dictionary_for_weighted_die(dictionary):
 class AddBox(object):
     """selects and adds new dice to a table"""
 
-    def __init__(self, table_manager):
-        """takes a DiceTableManager and a DieManager.  self.presets is a list of
+    def __init__(self, dice_table_manager):
+        """self.presets is a list of
         preset die labels"""
-        self._table = table_manager
+        self._table = dice_table_manager
         self._size = 6
         self._mod = 0
         self._multiplier = 0
@@ -393,28 +427,25 @@ class AddBox(object):
         self.presets = ['D{}'.format(die) for die in
                         (2, 4, 6, 8, 10, 12, 20, 100)]
 
-    def get_die(self):
-        """returns the die object"""
-        return self._die
-
     def get_die_details(self):
         return get_die_roll_details(self._die)
 
     def display_die(self):
-        """returns a set of add values and str(die) for the bottom display
-        [die_sting, '+number' strings]"""
-        return get_add_and_remove_labels(self._die, 0, False)
+        """
+        for D100,
 
-    def display_current(self):
+        :return: ['D100', '+1', '+5']
+        """
+        return get_add_and_remove_labels(self._die, 0, enable_remove=False)
+
+    def display_current_table(self):
         """displays the table info"""
-        return self._table.get_info('text_one_line')
+        return self._table.title_one_line
 
     def add(self, number):
-        """number is an int >=0. adds to the table_manager"""
         self._table.request_add(number, self._die)
 
     def _update_die(self):
-        """updates the die. make_die at line 233"""
         self._die = make_die(self._size, self._mod, self._multiplier,
                              self._dictionary)
 
@@ -442,9 +473,12 @@ class AddBox(object):
         return texts
 
     def record_weights_text(self, text_val_lst):
-        """takes a list of tuples(text, weightvalues) and makes a dictionary.
-        text is format 'weight for {}'.format(roll).  weightvalue is int >=0
-        roll is int >= 1"""
+        """
+
+        :param text_val_lst:
+            [('weight for {}.'.format(roll),\n
+            type:int - weight for roll) ..]
+        """
         self._dictionary = {}
         for text, weight in text_val_lst:
             roll = int(text[len('weight for '):])
@@ -460,32 +494,33 @@ class StatBox(object):
         self._table = table_manager
 
     def display(self, val_1, val_2):
-        """val_1 and val_2 are ints passed from the stat sliders.
-        returns a list of info. [info_text, stat_text,(new_val_1, new_val_2)
-                                 (val_min, val_max)]
-        for displaying updates when info changes."""
-        val_min, val_max = self._table.get_info('range')
-        mean = self._table.get_info('mean')
-        stddev = self._table.get_info('stddev')
-        info_text = (
-            'the range of numbers is {:,}-{:,}\n'.format(val_min, val_max) +
-            'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
-        )
+        """
+
+
+        :return: [ info text: range+stddev,\n
+            stat text: \n
+            values: tuple of what values are displayed\n
+            min_max: tuple of min and max for slider
+        """
+        val_min, val_max = self._table.range
+        info_text = self._table.get_range_stats_text()
         stat_text, values = self.display_stats(val_1, val_2)
         return [info_text, stat_text, values, (val_min, val_max)]
 
     def display_stats(self, val_1, val_2):
-        """val_1 and val_2 are ints. returns a list
-        [text showing stats for all rolls between and including vals,
-         (new_val_1, new_val_2), (val_min, val_max)]"""
-        val_min, val_max = self._table.get_info('range')
+        """
+        :return: [ str: stat info\n
+            tuple: the two input vals adjusted for min/max
+        """
+        val_min, val_max = self._table.range
 
         val_1 = min(val_max, max(val_min, val_1))
         val_2 = min(val_max, max(val_min, val_2))
 
         stat_list = list(range(min(val_1, val_2), max(val_1, val_2) + 1))
         stat_info = self._table.get_stats(stat_list)
-        stat_text = ('\n    {stat[0]} occurred {stat[1]} times\n' +
+        stat_text = ('\n' +
+                     '    {stat[0]} occurred {stat[1]} times\n' +
                      '    out of {stat[2]} total combinations\n\n' +
                      '    that\'s a one in {stat[3]} chance\n' +
                      '    or {stat[4]} percent')
@@ -503,9 +538,13 @@ class InfoBox(object):
         self._lines_per_page = {'full_text': 1, 'weights_info': 1}
         self._pages = {'full_text': [''], 'weights_info': ['']}
 
+    def get_info(self, key):
+        info = {'weights_info': self._table.weights_info, 'full_text': self._table.full_text}
+        return info[key]
+
     def _parse_info(self, key):
         """key = 'weights_info' or 'full_text'. preps text. returns new text"""
-        text = self._table.get_info(key).rstrip('\n')
+        text = self.get_info(key).rstrip('\n')
         if key == 'weights_info':
             text = text.replace('a roll of ', '')
             text = text.replace(' a ', ' ')
@@ -561,14 +600,14 @@ class InfoBox(object):
 
     def _general_info(self):
         """returns a string of some general info"""
-        vals_min, vals_max = self._table.get_info('range')
-        mean = self._table.get_info('mean')
-        stddev = self._table.get_info('stddev')
-        text = (
-            'the range of numbers is {:,}-{:,}\n'.format(vals_min, vals_max) +
-            'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
-        )
-        return text
+        # vals_min, vals_max = self._table.get_info('range')
+        # mean = self._table.get_info('mean')
+        # stddev = self._table.get_info('stddev')
+        # text = (
+        #     'the range of numbers is {:,}-{:,}\n'.format(vals_min, vals_max) +
+        #     'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
+        # )
+        return self._table.get_range_stats_text()
 
     def display_paged(self, weights_lines, full_text_lines):
         """weights_lines and full_text_lines are ints > 1 = lines_per_page
@@ -576,7 +615,7 @@ class InfoBox(object):
         returns [general_info, table_str, (weights_info), (full_text)]"""
         self.make_pages('weights_info', weights_lines)
         self.make_pages('full_text', full_text_lines)
-        return [self._general_info(), self._table.get_info('text'),
+        return [self._table.get_range_stats_text(), self._table.title,
                 self.display_current_page('weights_info', weights_lines),
                 self.display_current_page('full_text', full_text_lines)]
 
@@ -584,7 +623,7 @@ class InfoBox(object):
         """returns [general_info, table_str, weights_info, full_text].
         here weights_info and full_text are not page_views.  this is for a
         scrolling display."""
-        return [self._general_info(), self._table.get_info('text'),
+        return [self._general_info(), self._table.title,
                 self._parse_info('weights_info'), self._parse_info('full_text')]
 
 
@@ -602,7 +641,7 @@ if __name__ == '__main__':
 
     table = DiceTableManager()
     saved = SavedTables()
-    info = InfoBox(table)
+    info_box = InfoBox(table)
     interface = CurrentAndSavedInterface(table, saved)
     for _ in range(10):
         saved.save_new(table.get_obj_to_save())
@@ -610,8 +649,8 @@ if __name__ == '__main__':
 
     saved.save_new(table.get_obj_to_save())
     saved.save_new(table.get_obj_to_save())
-    test_text = table.get_info('text_one_line')
-    test_tuples = table.get_info('tuple_list')
+    test_text = table.title_one_line
+    test_tuples = table.tuple_list
     txt_tpls = saved.get_labels() + [('hi', [(1, 2)])]
 
 

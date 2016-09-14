@@ -14,16 +14,23 @@ import filehandler as fh
 
 class DummyParent(object):
     def __init__(self):
-        self.dictionary = {
-            'weights_info': '1D1  W: 3\n    a roll of 1 has a weight of 3',
-            'full_text': '\n'.join([str(num) for num in range(10)]),
-            'mean': 12345.6,
-            'stddev': 12.34,
-            'range': (10, 1000),
-            'text': 'text'}
+        self.weights_info = '1D1  W: 3\n    a roll of 1 has a weight of 3'
+        self.full_text = '\n'.join([str(num) for num in range(10)])
+        self.range = (10, 1000)
+        self.mean = 12345.6
+        self.stddev = 12.34
+        self.title = 'text'
 
-    def get_info(self, key):
-        return self.dictionary[key]
+    def get_range_stats_text(self):
+        info_text = (
+            'the range of numbers is {:,}-{:,}\n'.format(*self.range) +
+            'the mean is {:,}\nthe stddev is {}'.format(round(self.mean, 4), self.stddev)
+        )
+        return info_text
+
+    def update_info(self):
+        self.weights_info = '1D1  W: 2\n    a roll of 1 has a weight of 2'
+        self.full_text = '\n'.join([str(num) for num in range(20)])
 
 
 class TestMVM(unittest.TestCase):
@@ -47,39 +54,56 @@ class TestMVM(unittest.TestCase):
         del self.AB
         del self.IB
 
-    def test_DiceTableManager_get_info_range(self):
-        self.assertEqual(self.DTM.get_info('range'), (0, 0))
+    def test_DiceTableManager_stddev(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.stddev, 0.5)
 
-    def test_DiceTableManager_get_info_mean(self):
-        self.assertEqual(self.DTM.get_info('mean'), 0.0)
+    def test_DiceTableManager_mean(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.mean, 1.5)
 
-    def test_DiceTableManager_get_info_stddev(self):
-        self.assertEqual(self.DTM.get_info('stddev'), 0.0)
+    def test_DiceTableManager_range(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.range, (1, 2))
 
-    def test_DiceTableManager_get_info_text(self):
+    def test_DiceTableManager_title(self):
+        self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(3))
-        self.assertEqual(self.DTM.get_info('text'), '1D3')
+        self.assertEqual(self.DTM.title, '1D2\n1D3')
 
-    def test_DiceTableManager_get_info_text_one_line(self):
+    def test_DiceTableManager_title_one_line(self):
+        self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(3))
-        self.DTM.request_add(1, dt.Die(4))
-        self.assertEqual(self.DTM.get_info('text_one_line'), '1D3 \\ 1D4')
+        self.assertEqual(self.DTM.title_one_line, '1D2 \\ 1D3')
 
-    def test_DiceTableManager_get_info_weights(self):
+    def test_DiceTableManager_full_text(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.full_text, '1: 1\n2: 1\n')
+
+    def test_DiceTableManager_weights_info(self):
         self.DTM.request_add(1, dt.Die(3))
-        self.assertEqual(self.DTM.get_info('weights_info'),
+        self.assertEqual(self.DTM.weights_info,
                          '1D3\n    No weights')
 
-    def test_DiceTableManager_get_info_dice_list(self):
-        self.DTM.request_add(1, dt.Die(3))
-        self.assertEqual(self.DTM.get_info('dice_list'),
-                         [(dt.Die(3), 1)])
+    def test_DiceTableManager_dice_list(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.dice_list, [(dt.Die(2), 1)])
 
-    def test_DiceTableManager_get_info_full_text(self):
-        self.assertEqual(self.DTM.get_info('full_text'), '0: 1\n')
+    def test_DiceTableManager_tuple_list(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.tuple_list, [(1, 1), (2, 1)])
 
-    def test_DiceTableManager_get_info_tuple_list(self):
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
+    def test_DiceTableManager_get_range_stats_text(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.DTM.get_range_stats_text(),
+                         ('the range of numbers is 1-2\n' +
+                          'the mean is 1.5\nthe stddev is 0.5'))
+
+    def test_DiceTableManager_get_range_stats_text_formatting(self):
+        self.DTM.request_add(1, dt.WeightedDie({1000: 1, 3000: 2}))
+        self.assertEqual(self.DTM.get_range_stats_text(),
+                         ('the range of numbers is 1,000-3,000\n' +
+                          'the mean is 2,333.3333\nthe stddev is 942.809'))
 
     def test_DiceTableManager_get_stats_true_zero_chance(self):
         self.assertEqual(self.DTM.get_stats([1, 2, 3]),
@@ -116,42 +140,42 @@ class TestMVM(unittest.TestCase):
         table.add_die(1, dt.Die(4))
         data_obj = fh.SavedDiceTable('1D2 \\ 1D4', table.frequency_all(), table.get_list(), [])
         self.DTM.request_reload(data_obj)
-        self.assertEqual(self.DTM.get_info('text'), '1D2\n1D4')
-        self.assertEqual(self.DTM.get_info('full_text'),
+        self.assertEqual(self.DTM.title, '1D2\n1D4')
+        self.assertEqual(self.DTM.full_text,
                          '2: 1\n3: 2\n4: 2\n5: 2\n6: 1\n')
 
     def test_DiceTableManager_request_add(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(4))
-        self.assertEqual(self.DTM.get_info('text'), '1D2\n1D4')
-        self.assertEqual(self.DTM.get_info('full_text'),
+        self.assertEqual(self.DTM.title, '1D2\n1D4')
+        self.assertEqual(self.DTM.full_text,
                          '2: 1\n3: 2\n4: 2\n5: 2\n6: 1\n')
 
     def test_DiceTableManager_request_remove_normal_case(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(4))
         self.DTM.request_remove(1, dt.Die(4))
-        self.assertEqual(self.DTM.get_info('text'), '1D2')
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
+        self.assertEqual(self.DTM.title, '1D2')
+        self.assertEqual(self.DTM.tuple_list, [(1, 1), (2, 1)])
 
     def test_DiceTableManager_request_remove_only_removes_max_dice(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(4))
         self.DTM.request_remove(1000, dt.Die(4))
-        self.assertEqual(self.DTM.get_info('text'), '1D2')
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
+        self.assertEqual(self.DTM.title, '1D2')
+        self.assertEqual(self.DTM.tuple_list, [(1, 1), (2, 1)])
 
     def test_DiceTableManager_request_remove_doesnt_remove_if_not_there(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_remove(1, dt.Die(4))
-        self.assertEqual(self.DTM.get_info('text'), '1D2')
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1), (2, 1)])
+        self.assertEqual(self.DTM.title, '1D2')
+        self.assertEqual(self.DTM.tuple_list, [(1, 1), (2, 1)])
 
     def test_DiceTableManager_request_reset(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_reset()
-        self.assertEqual(self.DTM.get_info('text'), '')
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
+        self.assertEqual(self.DTM.title, '')
+        self.assertEqual(self.DTM.tuple_list, [(0, 1)])
 
     def test_SavedTables_inits_as_empty(self):
         self.assertEqual(self.ST._saved_tables.size, 0)
@@ -565,7 +589,7 @@ class TestMVM(unittest.TestCase):
     def test_ChangeBox_get_dice_details_empty_table(self):
         self.assertEqual(self.CB.get_dice_details(), [])
 
-    def test_ChangeBox_get_dice_detail_normal(self):
+    def test_ChangeBox_get_dice_details_normal(self):
         self.DTM.request_add(1, dt.Die(1))
         self.DTM.request_add(1, dt.Die(2))
         self.assertEqual(self.CB.get_dice_details(),
@@ -585,25 +609,25 @@ class TestMVM(unittest.TestCase):
 
     def test_ChangeBox_add_rm_at_zero(self):
         self.CB.add_rm(0, dt.Die(5))
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
-        self.assertEqual(self.DTM.get_info('dice_list'), [])
+        self.assertEqual(self.DTM.tuple_list, [(0, 1)])
+        self.assertEqual(self.DTM.dice_list, [])
 
     def test_ChangeBox_add_rm_pos_number(self):
         self.CB.add_rm(2, dt.Die(1))
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(2, 1)])
-        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(1), 2)])
+        self.assertEqual(self.DTM.tuple_list, [(2, 1)])
+        self.assertEqual(self.DTM.dice_list, [(dt.Die(1), 2)])
 
     def test_ChangeBox_add_rm_neg_number(self):
         self.CB.add_rm(2, dt.Die(1))
         self.CB.add_rm(-1, dt.Die(1))
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(1, 1)])
-        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(1), 1)])
+        self.assertEqual(self.DTM.tuple_list, [(1, 1)])
+        self.assertEqual(self.DTM.dice_list, [(dt.Die(1), 1)])
 
     def test_ChangeBox_reset(self):
         self.CB.add_rm(1, dt.Die(2))
         self.CB.reset()
-        self.assertEqual(self.DTM.get_info('tuple_list'), [(0, 1)])
-        self.assertEqual(self.DTM.get_info('dice_list'), [])
+        self.assertEqual(self.DTM.tuple_list, [(0, 1)])
+        self.assertEqual(self.DTM.dice_list, [])
 
     def test_make_die_input_die__die_empty_dict(self):
         self.assertEqual(mvm.make_die(3, 0, 0, {}), dt.Die(3))
@@ -652,14 +676,14 @@ class TestMVM(unittest.TestCase):
     def test_AddBox_display_current(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(2, dt.Die(1))
-        self.assertEqual(self.AB.display_current(), '2D1 \\ 1D2')
+        self.assertEqual(self.AB.display_current_table(), '2D1 \\ 1D2')
 
     def test_AddBox_add(self):
         self.AB._die = dt.Die(2)
         self.AB.add(2)
-        self.assertEqual(self.DTM.get_info('tuple_list'),
+        self.assertEqual(self.DTM.tuple_list,
                          [(2, 1), (3, 2), (4, 1)])
-        self.assertEqual(self.DTM.get_info('dice_list'), [(dt.Die(2), 2)])
+        self.assertEqual(self.DTM.dice_list, [(dt.Die(2), 2)])
 
     def test_AddBox_set_size_resets_dictionary(self):
         self.AB._dictionary = {1: 2}
@@ -766,6 +790,10 @@ class TestMVM(unittest.TestCase):
         )
         self.assertEqual(self.SB.display(1000, 10000),
                          [info_text, stat_text, (0, 0), (0, 0)])
+
+    def test_InfoBox__parse_info_updates(self):
+        self.IB._table.update_info()
+        self.assertEqual(self.IB._parse_info('full_text'), '\n'.join([str(num) for num in range(20)]))
 
     def test_InfoBox_display_current_page_weights_info_formatting(self):
         self.assertEqual(self.IB.display_current_page('weights_info', 2),

@@ -287,7 +287,7 @@ class AddBox(BoxLayout):
         self.display_die()
     def update(self):
         '''called by main app at dice change'''
-        self.ids['current'].text = (self.view_model.display_current())
+        self.ids['current'].text = (self.view_model.display_current_table())
     def assign_size_btn(self, btn):
         '''assigns the die size and die when a preset btn is pushed'''
         die_size = int(btn.text[1:])

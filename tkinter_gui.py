@@ -58,15 +58,12 @@ def make_lines(text, min_lines=1):
     for _ in range(min_lines - len(lines)):
         lines.append(' ')
     return '\n'.join(lines)
-def make_die_tip(label, die, delay=300):
-    '''returns a rooltip for a label'''
-    text = '{} rolls:'.format(die)
-    num_len = max(len(str(die.tuple_list()[0][0])),
-                  len(str(die.tuple_list()[-1][0])))
 
-    for roll, freq in die.tuple_list():
-        text += '\n  {:>{}} with frequency: {}'.format(roll, num_len, freq)
+
+def make_tool_tip_for_die(label, text, delay=300):
     return ToolTip(label, text, delay, wraplength=300, font=('courier', 7))
+
+
 class NumberInput(tk.Entry):
     '''a text entry that only allows digits and '+', '-', ' '. will calculate
     basic arithmatic'''
@@ -241,7 +238,7 @@ class AddBox(object):
 
     def update(self):
         '''called by main app at dice change'''
-        self.current.set(make_lines(self.view_model.display_current(),
+        self.current.set(make_lines(self.view_model.display_current_table(),
                                     min_lines=5))
     def assign_size_btn(self, txt):
         '''assigns the die size and die when a preset btn is pushed'''
@@ -278,7 +275,7 @@ class AddBox(object):
         the_die = tk.Label(self.adder, text='  ' + to_add[0] + '  ',
                            bg='violet')
         the_die.pack(side=tk.LEFT)
-        make_die_tip(the_die, self.view_model.get_die())
+        make_tool_tip_for_die(the_die, self.view_model.get_die_details())
         for add_val in to_add[1:]:
             widget = tk.Button(self.adder, text=add_val,
                                command=partial(self.add, add_val))
@@ -313,6 +310,7 @@ class ChangeBox(object):
     def update(self):
         '''updates the current dice after add, rm or clear'''
         button_list = self.view_model.display()
+        die_tool_tip_list = self.view_model.get_dice_details()
         for widget in self.frame.winfo_children():
             widget.destroy()
         if button_list:
@@ -324,7 +322,9 @@ class ChangeBox(object):
             text = ('Once you add dice, they will show up here. '+
                     'Hover over a die to see its details.')
             ToolTip(label, text, 100)
-        for labels, die_ in button_list:
+        # for labels, die_ in button_list:
+        for index, tool_tip_text in enumerate(die_tool_tip_list):
+            labels, die_ = button_list[index]
             temp = labels[:]
             labels = []
             for label in temp:
@@ -340,7 +340,7 @@ class ChangeBox(object):
                 else:
                     label = tk.Label(box, text=label, bg='violet')
                     label.pack(side=tk.LEFT, expand=True)
-                    make_die_tip(label, die_)
+                    make_tool_tip_for_die(label, tool_tip_text)
 
 ########## StatBox #########
 class StatBox(object):
