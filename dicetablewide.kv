@@ -5,7 +5,7 @@
 <NumberSelect>:
     orientation: 'vertical'
     Button:
-        id:text
+        id:title
         size_hint: 1, 0.5
         on_press: root.open_pad()
         background_color: (0.6, 0.4, 1.0, 1.0)
@@ -18,8 +18,8 @@
         halign: 'center'
 <WeightsPopup>:
     size_hint: None, None
-    text: ''
-    text_size: 0
+    title: ''
+    title_size: 0
     ScrollView:
         id:scroll_shell
         scroll_timeout:70
@@ -30,7 +30,7 @@
 
 #for GraphBox
 <PlotPopup>:
-    text: 'click the legend button for legend.  click on a label to highlight that plot.'
+    title: 'click the legend button for legend.  click on a label to highlight that plot.'
     FloatLayout:
         ScatterLayout:
             id: graph_container
@@ -66,10 +66,10 @@
         active: root.active
         canvas:
             Color:
-                rgba: 1, 1, 1, 0.4  
-            Line: 
+                rgba: 1, 1, 1, 0.4
+            Line:
                 points: self.pos[0] + self.size[0]/4, self.pos[1] +self.size[1]/4, self.pos[0] + 3*self.size[0]/4, self.pos[1] + self.size[1]/4, self.pos[0] + 3*self.size[0]/4, self.pos[1] + 3*self.size[1]/4, self.pos[0] + self.size[0]/4, self.pos[1] + 3*self.size[1]/4, self.pos[0] + self.size[0]/4, self.pos[1] +self.size[1]/4
-                width: 3 
+                width: 3
                 joint: 'miter'
                 cap: 'square'
     ScrollView:
@@ -97,7 +97,7 @@
         size_hint:1, .04
         halign: 'center'
         valign: 'middle'
-        text: 'title'
+        text: 'TITLE'
         text_size:self.size
     BoxLayout:
         id:buttons_container
@@ -140,7 +140,7 @@
                 pos: self.pos
                 size: self.size
         Label:
-            
+
             id:text_container
             size_hint: 0.8, 1
             text:''
@@ -290,16 +290,16 @@
             valign: 'middle'
             on_press: self.delay(root.graph_it)
         Button:
-            id: delete_requested
+            id: clear_selected
             text: 'clear selected'
             text_size: self.size
             size: self.texture_size
             size_hint: 0.33, 1
             halign: 'center'
             valign: 'middle'
-            on_press: root.delete_requested()
+            on_press: root.clear_selected()
         Button:
-            id: delete_all
+            id: clear_all
             text: 'clear history'
             text_size: self.size
             size: self.texture_size
