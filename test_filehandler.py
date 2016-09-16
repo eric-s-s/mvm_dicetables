@@ -11,11 +11,11 @@ import filehandler as fh
 
 
 def create_saved_dice_table(table):
-    text = str(table).replace('\n', ' \\ ')
+    title = str(table).replace('\n', ' \\ ')
     graph_data = dt.graph_pts(table)
     tuple_list = table.frequency_all()
     dice_list = table.get_list()
-    return fh.SavedDiceTable(text, tuple_list, dice_list, graph_data)
+    return fh.SavedDiceTable(title, tuple_list, dice_list, graph_data)
 
 
 class TestFileHandler(unittest.TestCase):
@@ -55,7 +55,7 @@ class TestFileHandler(unittest.TestCase):
         data_obj = create_saved_dice_table(table)
         self.assertEqual((25.0, 50.0), data_obj.y_range)
 
-    def test_dice_tabel_data_get_tuple_list(self):
+    def test_dice_table_data_get_tuple_list(self):
         data_obj = create_saved_dice_table(dt.DiceTable())
         self.assertEqual([(0, 1)], data_obj.tuple_list)
 
@@ -65,16 +65,16 @@ class TestFileHandler(unittest.TestCase):
         new_tuple_list[0] = 5
         self.assertEqual([(0, 1)], data_obj.tuple_list)
 
-    def test_SavedDiceTable_get_text_on_empty_obj(self):
+    def test_SavedDiceTable_get_title_on_empty_obj(self):
         data_obj = create_saved_dice_table(dt.DiceTable())
-        self.assertEqual('', data_obj.text)
+        self.assertEqual('', data_obj.title)
 
-    def test_SavedDiceTable_get_text(self):
+    def test_SavedDiceTable_get_title(self):
         table = dt.DiceTable()
         table.add_die(2, dt.Die(1))
         table.add_die(3, dt.Die(2))
         data_obj = create_saved_dice_table(table)
-        self.assertEqual('2D1 \\ 3D2', data_obj.text)
+        self.assertEqual('2D1 \\ 3D2', data_obj.title)
 
     def test_SavedDiceTable_get_dice_table(self):
         table = dt.DiceTable()
@@ -92,7 +92,7 @@ class TestFileHandler(unittest.TestCase):
         not_really_equal_data_obj = fh.SavedDiceTable('2D2', [(2, 1), (3, 2), (4, 1)], [], [])
         self.assertTrue(data_obj == not_really_equal_data_obj)
 
-    def test_SavedDiceTable_equality_test_false_by_text(self):
+    def test_SavedDiceTable_equality_test_false_by_title(self):
         table_1 = dt.DiceTable()
         table_1.add_die(1, dt.WeightedDie({1: 1, 2: 1}))
         data_obj = create_saved_dice_table(table_1)
@@ -109,7 +109,7 @@ class TestFileHandler(unittest.TestCase):
         table_2 = dt.DiceTable()
         table_2.add_die(1, dt.WeightedDie({1: 1, 2: 5}))
         other_data_obj = create_saved_dice_table(table_2)
-        self.assertEqual(data_obj.text, other_data_obj.text)
+        self.assertEqual(data_obj.title, other_data_obj.title)
         self.assertFalse(data_obj == other_data_obj)
 
     def test_SavedDiceTable_not_equal(self):
@@ -142,10 +142,10 @@ class TestFileHandler(unittest.TestCase):
         data_obj = create_saved_dice_table(table)
         self.assertEqual(data_obj.verify_all_types(), '')
 
-    def test_SavedDiceTable_verify_all_types_text_errors(self):
+    def test_SavedDiceTable_verify_all_types_title_errors(self):
         data_obj = create_saved_dice_table(dt.DiceTable())
-        data_obj._text = 2
-        self.assertEqual(data_obj.verify_all_types(), 'error: invalid text value')
+        data_obj._title = 2
+        self.assertEqual(data_obj.verify_all_types(), 'error: invalid title value')
 
     def test_SavedDiceTable_verify_all_types_tuple_errors(self):
         data_obj = create_saved_dice_table(dt.DiceTable())
@@ -291,7 +291,7 @@ class TestFileHandler(unittest.TestCase):
         obj1 = create_saved_dice_table(dt.DiceTable())
         obj2 = create_saved_dice_table(dt.DiceTable())
         obj1._tuple_list = [(2.0, 1)]
-        obj2._text = 2
+        obj2._title = 2
         save_data_array = np.array([obj1, obj2])
         self.assertEqual(fh.check_saved_tables_within_array(save_data_array), 'error: invalid tuple list')
 

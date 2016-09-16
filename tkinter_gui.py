@@ -12,7 +12,7 @@ from itertools import cycle
 import matplotlib.pyplot as plt
 
 from michaellange import ToolTip
-import dt_gui_mvm as mvm
+import gui_model as mvm
 
 HELP_TEXT = ('this is a platform for finding the probability of dice ' +
              'rolls for any set of dice. For example, the chance of ' +
@@ -43,7 +43,7 @@ HELP_TEXT = ('this is a platform for finding the probability of dice ' +
 
 ###### general tool #######
 def make_lines(text, min_lines=1):
-    '''changes long text into multi-line text'''
+    '''changes long title into multi-line title'''
     line_len = 30
     lines = []
     while len(text) > line_len:
@@ -65,7 +65,7 @@ def make_tool_tip_for_die(label, text, delay=300):
 
 
 class NumberInput(tk.Entry):
-    '''a text entry that only allows digits and '+', '-', ' '. will calculate
+    '''a title entry that only allows digits and '+', '-', ' '. will calculate
     basic arithmatic'''
     def __init__(self, master, reset=True, *args, **kwargs):
         '''exactly like entry, but reset decides if it will reset when mouse
@@ -79,17 +79,17 @@ class NumberInput(tk.Entry):
         '''erases the entry on a mouse click inside box'''
         self.delete(0, tk.END)
     def validate(self, text):
-        '''checks to make sure each piece of the text is in acceptable list'''
+        '''checks to make sure each piece of the title is in acceptable list'''
         for element in text:
             if element not in '1234567890+-* ':
                 self.bell()
                 return False
         return True
     def calculate(self):
-        '''parses text to calculatefinal value'''
+        '''parses title to calculatefinal value'''
         text = self.get()
         def parse_text(text):
-            '''cuts text to list and removes spaces'''
+            '''cuts title to list and removes spaces'''
             elements = []
             number_str = ''
             for element in text:
@@ -157,7 +157,7 @@ class WeightPopup(object):
         col, row = divmod(len(text_list), max_cols)
         enter_weights.grid(column=col, row=row)
     def record_weights(self):
-        '''records weights as tuples (text, weight_val) and passes to parent's
+        '''records weights as tuples (title, weight_val) and passes to parent's
         record_weights()'''
         out = []
         for widget in self.window.winfo_children():
@@ -248,7 +248,7 @@ class AddBox(object):
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_size_text(self, event):
-        '''asigns the die size and die when text is entered'''
+        '''asigns the die size and die when title is entered'''
         top = 200
         bottom = 2
         die_size = event.widget.calculate()
@@ -263,7 +263,7 @@ class AddBox(object):
         self.view_model.set_mod(mod)
         self.display_die()
     def assign_multiplier(self, multiplier_var, *args):
-        '''assigns a die multiplier and new_die based on spinner's text.'''
+        '''assigns a die multiplier and new_die based on spinner's title.'''
         multiplier = int(multiplier_var.get()[1:])
         self.view_model.set_multiplier(multiplier)
         self.display_die()
@@ -288,7 +288,7 @@ class AddBox(object):
         self.view_model.record_weights_text(lst)
         self.display_die()
     def add(self, txt):
-        '''uses btn text and die stored in view_model to add to current table'''
+        '''uses btn title and die stored in view_model to add to current table'''
         self.view_model.add(int(txt))
         self.master.do_update()
 ###### ChangeBox no extra classes #######
@@ -300,7 +300,7 @@ class ChangeBox(object):
         self.frame = tk.Frame(master.frame)
         self.view_model = mvm.ChangeBox(mvm.DiceTableManager())
     def add_rm(self, text, die):
-        '''uses die stored in button and btn text to request add or rm'''
+        '''uses die stored in button and btn title to request add or rm'''
         self.view_model.add_rm(int(text), die)
         self.master.do_update()
     def reset(self):
@@ -409,7 +409,7 @@ class StatBox(object):
         self.right.config(to=min_max[0])
         self.display_stats(stat_text, vals)
     def display_stats(self, stat_text, vals):
-        '''takes a stat text and two values, and displays them.'''
+        '''takes a stat title and two values, and displays them.'''
         self.stat_text.set(stat_text)
         self.left.set(vals[0])
         self.right.set(vals[1])
@@ -425,7 +425,7 @@ class HistoryChooser(object):
     '''makes a popup of choices from master's history.  does the action passed
     to it.'''
     def __init__(self, master, partial_action, button_name, add_current=False):
-        '''creates a popup of check boxes.  and a button with text=button_name.
+        '''creates a popup of check boxes.  and a button with title=button_name.
         when button is pressed, makes a list of all chosen histories and does
         the partial action on the list. add_current includes the current table
         in the list.'''
@@ -460,7 +460,7 @@ class HistoryChooser(object):
             btn.select()
             self.choices.append((do_it, current))
     def do_action(self):
-        '''makes a list of all chosen text/tuples and does the action on them'''
+        '''makes a list of all chosen title/tuples and does the action on them'''
         chosen = []
         for do_it, to_act in self.choices:
             if do_it.get():
@@ -545,7 +545,7 @@ class GraphMenu(object):
             msgbox.showinfo('Empty', 'No graphs to select')
     def graph(self, plot_lst):
         '''all graph functions call this base function to graph. plot_list is
-        a list of tuples (text, pts)'''
+        a list of tuples (title, pts)'''
         plots = self.view_model.get_requested_graphs(plot_lst)
         self.pack_reloader()
         if plots[2]:
@@ -571,7 +571,7 @@ class GraphMenu(object):
                 self.view_model.delete_all()
                 self.pack_reloader()
     def clear_selected(self, text_tuples_lst):
-        '''gets passed a list of (text, tuple_list).  clears those tables from
+        '''gets passed a list of (title, tuple_list).  clears those tables from
         history'''
         self.view_model.delete_requested(text_tuples_lst)
         self.pack_reloader()

@@ -48,12 +48,12 @@
                 x_ticks_major: 2
                 y_ticks_major: 1
         Button:
-            text:'done'
+            title:'done'
             size_hint: 0.1, 0.1
             on_press: root.dismiss()
         Button:
             id: legend
-            text:'legend'
+            title:'legend'
             size_hint: None, 0.07
             width: self.texture_size[0]
             padding_x: 10
@@ -79,7 +79,7 @@
         size_hint: 0.9, 1
         FlashLabel:
             id:label
-            text: ''
+            title: ''
             size_hint: None, 1
             width: self.texture_size[0]
 
@@ -97,7 +97,7 @@
         size_hint:1, .04
         halign: 'center'
         valign: 'middle'
-        text: 'TITLE'
+        title: 'TITLE'
         text_size:self.size
     BoxLayout:
         id:buttons_container
@@ -106,7 +106,7 @@
         Button:
             id:previous
             size_hint: 0.3, 1
-            text: '<==='
+            title: '<==='
             text_size:self.size
             halign: 'right'
             valign: 'middle'
@@ -121,7 +121,7 @@
         Button:
             id:next
             size_hint: 0.3, 1
-            text: '===>'
+            title: '===>'
             text_size:self.size
             halign: 'left'
             valign: 'middle'
@@ -143,7 +143,7 @@
             
             id:text_container
             size_hint: 0.8, 1
-            text:''
+            title:''
             valign: 'top'
             text_size: self.width, self.height
         Slider:
@@ -160,7 +160,7 @@
 <ChangeBox>:
     Label:
         id: intro
-        text: ''
+        title: ''
         text_size:self.size
         valign: 'top'
         halign: 'center'
@@ -173,7 +173,7 @@
     Label:
         id: current
         size_hint: 1, 0.1
-        text: 'no dice yet'
+        title: 'no dice yet'
         text_size: self.size
     BoxLayout:
         id: custom
@@ -186,19 +186,19 @@
             size_hint: 0.5, 1
             Label:
                 size_hint: 1, 0.6
-                text: 'type custom die size from 2-200'
+                title: 'type custom die size from 2-200'
                 text_size: self.size
             NumberInput:
                 id:custom_input
                 size_hint: 1, 0.4
-                on_changed: root.assign_size_text(self.text)
+                on_changed: root.assign_size_text(self.title)
         BoxLayout:
             size_hint: 0.5, 1
             orientation: 'horizontal'
             FlashButton:
                 id:make_weights
                 size_hint: 0.5, 1
-                text: 'make\nweights'
+                title: 'make\nweights'
                 text_size: self.size
                 halign: 'center'
                 valign: 'middle'
@@ -208,7 +208,7 @@
                 orientation: 'vertical'
                 Label:
                     size_hint: 1, 0.5
-                    text: 'strength\nv'
+                    title: 'strength\nv'
                     halign: 'center'
                     valign: 'middle'
                     #texture_size: self.size
@@ -217,7 +217,7 @@
                     #sync_height: True
                     #TODO uncomment in version 1.9.2
                     id: multiplier
-                    text: 'X1'
+                    title: 'X1'
                     values: ['X{}'.format(num) for num in range(1, 11)]
                     option_cls: Factory.get('MySpinnerOption')
     BoxLayout:
@@ -232,7 +232,7 @@
             orientation:'vertical'
             size_hint: 0.25, 1
             Label:
-                text:'add a modifier'
+                title:'add a modifier'
                 text_size: self.size
                 halign: 'center'
                 size_hint: 1, 0.2
@@ -241,7 +241,7 @@
                 size_hint: 1, 0.8
                 Label:
                     id: slider_num
-                    text: str(int(modifier.value))
+                    title: str(int(modifier.value))
                     size_hint: 0.25, 1
                 Slider:
                     id: modifier
@@ -261,7 +261,7 @@
     Label:
         id: instructions
         size_hint:1, 0.06
-        text: 'assign die size/weight/mod-----------------\n-------------------------add the assigned die'
+        title: 'assign die size/weight/mod-----------------\n-------------------------add the assigned die'
         halign: 'center'
     BoxLayout:
         id: add_it
@@ -282,7 +282,7 @@
         size_hint: 1, 0.1
         FlashButton:
             id: graph_stuff
-            text: 'graph it'
+            title: 'graph it'
             text_size: self.size
             size: self.texture_size
             size_hint: 0.33, 1
@@ -291,7 +291,7 @@
             on_press: self.delay(root.graph_it)
         Button:
             id: delete_requested
-            text: 'clear selected'
+            title: 'clear selected'
             text_size: self.size
             size: self.texture_size
             size_hint: 0.33, 1
@@ -300,7 +300,7 @@
             on_press: root.delete_requested()
         Button:
             id: delete_all
-            text: 'clear history'
+            title: 'clear history'
             text_size: self.size
             size: self.texture_size
             size_hint: 0.33, 1
@@ -315,7 +315,7 @@
         Label:
             id: info_text
             size_hint: 1, 0.2
-            text: 'no dice yet'
+            title: 'no dice yet'
             text_size: self.size
             valign: 'middle'
             halign: 'center'
@@ -323,13 +323,13 @@
             size_hint: 1, 0.4
             #top row - value1 value2
             Label:
-                text:'value 1'
+                title:'value 1'
                 text_size: self.size
                 size_hint:0.25, 0.1
                 pos_hint: {'x': 0.1, 'y': 0}
             Label:
                 size_hint:0.25, 0.1
-                text: 'value 2'
+                title: 'value 2'
                 text_size: self.size
                 pos_hint: {'x': 0.5, 'y': 0}
             #2nd row slider
@@ -353,27 +353,27 @@
                 on_value:root.assign_slider_value()
                 size_hint:0.25, 0.82
                 pos_hint: {'x': 0.6, 'y': 0.0}
-            #thrid row text input
+            #thrid row title input
             Label:
-                text:'may type\nin values'
+                title:'may type\nin values'
                 text_size: self.size
                 size_hint:0.2, 0.15
                 pos_hint: {'x': 0.01, 'y': 0.9}
             NumberInput:
                 id: slider_1_text
-                text: '{:,}'.format(int(slider_1.value))
+                title: '{:,}'.format(int(slider_1.value))
                 size_hint:0.3, 0.15
                 pos_hint: {'x': 0.2, 'y': 0.9}
                 on_text: root.assign_text_value()
             NumberInput:
                 id: slider_2_text
-                text: '{:,}'.format(int(slider_2.value))
+                title: '{:,}'.format(int(slider_2.value))
                 size_hint:0.3, 0.15
                 pos_hint: {'x': 0.6, 'y': 0.9}
                 on_text: root.assign_text_value()
         Label:
             id:stat_text
-            text:'no stats'
+            title:'no stats'
             text_size:self.size
             #size: self.texture_size
             size_hint: 1, 0.4
@@ -396,7 +396,7 @@
         Label:
             id:general_info
             size_hint: 1, 0.15
-            text:'test'
+            title:'test'
             text_size: self.size
             halign: 'center'
         ScrollView:
@@ -404,7 +404,7 @@
             size_hint: 1, 0.25
             Label:
                 id:table_str
-                text: 500*'adfgdg\n'
+                title: 500*'adfgdg\n'
                 size_hint: 1, None
                 text_size: self.width, None
                 height: table_str.texture_size[1]
@@ -420,24 +420,24 @@
 <DicePlatform>:
     default_tab: adder
     TabbedPanelItem:
-        text:'changer'
+        title:'changer'
         ChangeBox:
             id: change_box
     TabbedPanelItem:
         id: adder
-        text: 'add'
+        title: 'add'
         AddBox:
             id: add_box
     TabbedPanelItem:
-        text: 'graph'
+        title: 'graph'
         GraphBox:
             id: graph_box
     TabbedPanelItem:
-        text: 'stats'
+        title: 'stats'
         StatBox:
             id: stat_box
     TabbedPanelItem:
-        text: 'info'
+        title: 'info'
         InfoBox:
             id: info_box
             

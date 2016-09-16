@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring, invalid-name, too-many-public-methods
 # pylint: disable=too-few-public-methods, protected-access, no-member
-"""tests for the dt_gui_mvm.py module"""
+"""tests for the gui_model.py module"""
 
 from __future__ import absolute_import
 
@@ -8,29 +8,8 @@ import unittest
 
 import numpy as np
 import dicetables as dt
-import dt_gui_mvm as mvm
+import gui_model as mvm
 import filehandler as fh
-
-
-class DummyParent(object):
-    def __init__(self):
-        self.weights_info = '1D1  W: 3\n    a roll of 1 has a weight of 3'
-        self.full_text = '\n'.join([str(num) for num in range(10)])
-        self.range = (10, 1000)
-        self.mean = 12345.6
-        self.stddev = 12.34
-        self.title = 'text'
-
-    def get_range_stats_text(self):
-        info_text = (
-            'the range of numbers is {:,}-{:,}\n'.format(*self.range) +
-            'the mean is {:,}\nthe stddev is {}'.format(round(self.mean, 4), self.stddev)
-        )
-        return info_text
-
-    def update_info(self):
-        self.weights_info = '1D1  W: 2\n    a roll of 1 has a weight of 2'
-        self.full_text = '\n'.join([str(num) for num in range(20)])
 
 
 class TestMVM(unittest.TestCase):
@@ -42,7 +21,7 @@ class TestMVM(unittest.TestCase):
         self.CB = mvm.ChangeBox(self.DTM)
         self.SB = mvm.StatBox(self.DTM)
         self.AB = mvm.AddBox(self.DTM)
-        self.IB = mvm.InfoBox(DummyParent())
+        self.IB = mvm.InfoBox(self.DTM)
 
     def tearDown(self):
         del self.DTM
@@ -121,13 +100,13 @@ class TestMVM(unittest.TestCase):
     def test_DiceTableManager_get_obj_to_save(self):
         self.DTM.request_add(1, dt.Die(2))
         self.DTM.request_add(1, dt.Die(4))
-        expected_object_data = {'text': '1D2 \\ 1D4', 'x_range': (2, 6),
+        expected_object_data = {'title': '1D2 \\ 1D4', 'x_range': (2, 6),
                                 'y_range': (12.5, 25.0),
                                 'dice': [(dt.Die(2), 1), (dt.Die(4), 1)],
                                 'tuple_list': [(2, 1), (3, 2), (4, 2), (5, 2), (6, 1)],
                                 'graph_axes': [(2, 3, 4, 5, 6), (12.5, 25.0, 25.0, 25.0, 12.5)]}
         data_object = self.DTM.get_obj_to_save()
-        self.assertEqual(data_object.text, expected_object_data['text'])
+        self.assertEqual(data_object.title, expected_object_data['title'])
         self.assertEqual(data_object.x_range, expected_object_data['x_range'])
         self.assertEqual(data_object.y_range, expected_object_data['y_range'])
         self.assertEqual(data_object.dice_table.get_list(), expected_object_data['dice'])
@@ -729,15 +708,24 @@ class TestMVM(unittest.TestCase):
         self.AB.record_weights_text([('weight for 1', 3), ('weight for 2', 1)])
         self.assertEqual(self.AB._die, dt.WeightedDie({1: 3, 2: 1}))
 
-    def test_StatBox_display_stats_val_lt_min_range(self):
-        self.DTM.request_add(2, dt.Die(2))
-        stat_text = ('\n    2-4 occurred 4 times\n' +
-                     '    out of 4 total combinations\n\n' +
-                     '    that\'s a one in 1.000 chance\n' +
-                     '    or 100.0 percent')
-        self.assertEqual(self.SB.display_stats(-1, 4), [stat_text, (2, 4)])
+    def test_StatBox__adjust_value_to_within_min_max_empty_table(self):
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(5), 0)
 
-    def test_StatBox_display_stats_val_gt_max_range(self):
+    def test_StatBox__adjust_value_to_within_min_max_gt_max(self):
+        self.DTM.request_add(1, dt.Die(6))
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(15), 6)
+
+    def test_StatBox__adjust_value_to_within_min_max_lt_min(self):
+        self.DTM.request_add(1, dt.Die(6))
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(-1), 1)
+
+    def test_StatBox__adjust_value_to_within_min_max_val_within_range(self):
+        self.DTM.request_add(1, dt.Die(6))
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(2), 2)
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(1), 1)
+        self.assertEqual(self.SB._adjust_value_to_within_min_max(6), 6)
+
+    def test_StatBox_display_stats_expected_output(self):
         self.DTM.request_add(2, dt.Die(2))
         stat_text = ('\n    2-4 occurred 4 times\n' +
                      '    out of 4 total combinations\n\n' +
@@ -791,105 +779,141 @@ class TestMVM(unittest.TestCase):
         self.assertEqual(self.SB.display(1000, 10000),
                          [info_text, stat_text, (0, 0), (0, 0)])
 
-    def test_InfoBox__parse_info_updates(self):
-        self.IB._table.update_info()
-        self.assertEqual(self.IB._parse_info('full_text'), '\n'.join([str(num) for num in range(20)]))
+    def test_InfoBox__get_text_full_text(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.IB._get_text('full_text'), '1: 1\n2: 1')
 
-    def test_InfoBox_display_current_page_weights_info_formatting(self):
-        self.assertEqual(self.IB.display_current_page('weights_info', 2),
-                         ('1D1  W: 3\n    1 has weight: 3', 1, 1))
+    def test_InfoBox__get_text_weights_info(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.IB._get_text('weights_info'), '1D2\n    No weights')
 
-    def test_InfoBox_display_current_page_full_text_formatting(self):
-        self.assertEqual(self.IB.display_current_page('full_text', 2),
-                         ('0\n1', 1, 5))
+    def test_InfoBox__format_text_or_pass_with_full_text(self):
+        self.DTM.request_add(1, dt.Die(2))
+        self.assertEqual(self.IB._format_text_or_pass('full_text'), '1: 1\n2: 1')
 
-    def test_InfoBox_make_pages(self):
+    def test_InfoBox__format_text_or_pass_with_weights_info(self):
+        self.DTM.request_add(1, dt.WeightedDie({1: 2}))
+        self.assertEqual(self.IB._format_text_or_pass('weights_info'), '1D1  W:2\n    1 has weight: 2')
+
+    def test_InfoBox_make_pages_empty_table_with_full_text(self):
         self.IB.make_pages('full_text', 2)
-        expected = ['0\n1', '2\n3', '4\n5', '6\n7', '8\n9']
-        self.assertEqual(self.IB._pages['full_text'], expected)
+        self.assertEqual(self.IB._pages['full_text'], ['0: 1\n '])
 
-    def test_InfoBox_make_pages_with_remainder(self):
-        self.IB.make_pages('full_text', 6)
-        expected = ['0\n1\n2\n3\n4\n5', '6\n7\n8\n9\n \n ']
-        self.assertEqual(self.IB._pages['full_text'], expected)
+    def test_InfoBox_make_pages_empty_table_with_weights_info(self):
+        self.IB.make_pages('weights_info', 1)
+        self.assertEqual(self.IB._pages['weights_info'], [''])
 
-    def test_InfoBox_display_current_page_checks_page_size_change(self):
-        self.IB.make_pages('full_text', 6)
-        old = self.IB._pages['full_text']
-        self.IB.display_current_page('full_text', 3)
-        self.assertNotEqual(old, self.IB._pages['full_text'])
+    def test_InfoBox_make_pages_no_fill(self):
+        self.DTM.request_add(1, dt.Die(4))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB._pages['full_text'], ['1: 1\n2: 1', '3: 1\n4: 1'])
 
-    def test_InfoBox_display_current_page_middle_page(self):
-        self.IB._current_page['full_text'] = 2
-        self.assertEqual(self.IB.display_current_page('full_text', 3),
-                         ('3\n4\n5', 2, 4))
+    def test_InfoBox_make_pages_with_fill(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB._pages['full_text'], ['1: 1\n2: 1', '3: 1\n '])
+
+    def test_InfoBox_make_pages_with_weights_info(self):
+        self.DTM.request_add(1, dt.Die(3))
+        self.DTM.request_add(1, dt.WeightedDie({1: 2}))
+        self.IB.make_pages('weights_info', 2)
+        self.assertEqual(self.IB._pages['weights_info'], ['1D1  W:2\n    1 has weight: 2',
+                                                          '\n1D3',
+                                                          '    No weights\n '])
+
+    def test_InfoBox_display_current_page_defaults_page_one(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB.display_current_page('full_text'),
+                         (' 1: 1\n 2: 1', 1, 5))
+
+    def test_InfoBox_display_current_page_other_page(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 3
+        self.assertEqual(self.IB.display_current_page('full_text'),
+                         (' 5: 1\n 6: 1', 3, 5))
 
     def test_InfoBox_display_current_page_last_page(self):
-        self.IB._current_page['full_text'] = 2
-        self.assertEqual(self.IB.display_current_page('full_text', 5),
-                         ('5\n6\n7\n8\n9', 2, 2))
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 5
+        self.assertEqual(self.IB.display_current_page('full_text'),
+                         (' 9: 1\n10: 1', 5, 5))
 
-    def test_InfoBox_display_current_page_page_not_in_range(self):
-        self.IB._current_page['full_text'] = 17
-        self.assertEqual(self.IB.display_current_page('full_text', 3),
-                         ('0\n1\n2', 1, 4))
+    def test_InfoBox_display_current_page_page_number_outside_pages_range(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 12
+        self.assertEqual(self.IB.display_current_page('full_text'),
+                         (' 3: 1\n 4: 1', 2, 5))
 
     def test_InfoBox_display_current_page_adjusts_current_page_variable(self):
-        self.IB._current_page['full_text'] = 18
-        self.IB.display_current_page('full_text', 3)
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 12
+        self.IB.display_current_page('full_text')
         self.assertEqual(self.IB._current_page,
                          {'weights_info': 1, 'full_text': 2})
 
+    def test_InfoBox_display_next_page(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB.display_previous_page('full_text'),
+                         (' 9: 1\n10: 1', 5, 5))
+
     def test_InfoBox_display_next_page_last_page_goes_to_first_page(self):
-        self.IB._current_page['full_text'] = 4
-        self.assertEqual(self.IB.display_next_page('full_text', 3),
-                         ('0\n1\n2', 1, 4))
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 5
+        self.assertEqual(self.IB.display_next_page('full_text'),
+                         (' 1: 1\n 2: 1', 1, 5))
 
-    def test_InfoBox_display_next_page_normal_case(self):
-        self.assertEqual(self.IB.display_next_page('full_text', 3),
-                         ('3\n4\n5', 2, 4))
+    def test_InfoBox_display_previous_page(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.IB._current_page['full_text'] = 5
+        self.assertEqual(self.IB.display_previous_page('full_text'),
+                         (' 7: 1\n 8: 1', 4, 5))
 
-    def test_InfoBox_display_previous_page_last_page_goes_to_last_page(self):
-        self.assertEqual(self.IB.display_previous_page('full_text', 3),
-                         ('9\n \n ', 4, 4))
-
-    def test_InfoBox_display_previous_page_normal_case(self):
-        self.IB._current_page['full_text'] = 3
-        self.assertEqual(self.IB.display_previous_page('full_text', 3),
-                         ('3\n4\n5', 2, 4))
+    def test_InfoBox_display_previous_page_first_page_goes_to_last_page(self):
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB.display_previous_page('full_text'),
+                         (' 9: 1\n10: 1', 5, 5))
 
     def test_InfoBox_display_chosen_page_works_as_expected(self):
-        self.assertEqual(self.IB.display_chosen_page(2, 'full_text', 3),
-                         ('3\n4\n5', 2, 4))
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB.display_chosen_page(2, 'full_text'),
+                         (' 3: 1\n 4: 1', 2, 5))
 
     def test_InfoBox_display_chosen_page_works_out_of_range(self):
-        self.assertEqual(self.IB.display_chosen_page(-2, 'full_text', 3),
-                         ('3\n4\n5', 2, 4))
+        self.DTM.request_add(1, dt.Die(10))
+        self.IB.make_pages('full_text', 2)
+        self.assertEqual(self.IB.display_chosen_page(-3, 'full_text'),
+                         (' 3: 1\n 4: 1', 2, 5))
 
-    def test_InfoBox_display_paged_general_info_formatting(self):
-        general_info = ('the range of numbers is 10-1,000\n' +
-                        'the mean is 12,345.6\nthe stddev is 12.34')
-        self.assertEqual(self.IB.display_paged(1, 1)[0], general_info)
+    def test_InfoBox_display_paged_empty_table(self):
+        general_info = ('the range of numbers is 0-0\n' +
+                        'the mean is 0.0\nthe stddev is 0.0')
+        self.assertEqual(self.IB.display_paged(2, 2),
+                         [general_info, '', ('\n ', 1, 1), ('0: 1\n ', 1, 1)])
 
     def test_InfoBox_display_paged_works_as_expected(self):
-        general_info = ('the range of numbers is 10-1,000\n' +
-                        'the mean is 12,345.6\nthe stddev is 12.34')
-        self.assertEqual(self.IB.display_paged(1, 1),
-                         [general_info, 'text', ('1D1  W: 3', 1, 2),
-                          ('0', 1, 10)])
-
-    def test_InfoBox_display_updates_pages(self):
-        self.IB.make_pages('full_text', 2)
-        self.IB._pages['full_text'][0] = 'should not\nbe this'
-        self.assertEqual(self.IB.display_paged(2, 2)[3], ('0\n1', 1, 5))
+        self.DTM.request_add(1, dt.Die(10))
+        general_info = ('the range of numbers is 1-10\n' +
+                        'the mean is 5.5\nthe stddev is 2.8723')
+        self.assertEqual(self.IB.display_paged(2, 2),
+                         [general_info, '1D10', ('1D10\n    No weights', 1, 1),
+                          (' 1: 1\n 2: 1', 1, 5)])
 
     def test_InfoBox_display_works_as_expected(self):
-        general_info = ('the range of numbers is 10-1,000\n' +
-                        'the mean is 12,345.6\nthe stddev is 12.34')
+        self.DTM.request_add(1, dt.Die(2))
+        general_info = ('the range of numbers is 1-2\n' +
+                        'the mean is 1.5\nthe stddev is 0.5')
         self.assertEqual(self.IB.display(),
-                         [general_info, 'text',
-                          '1D1  W: 3\n    1 has weight: 3',
-                          '0\n1\n2\n3\n4\n5\n6\n7\n8\n9'])
+                         [general_info, '1D2', '1D2\n    No weights', '1: 1\n2: 1'])
 
 
 if __name__ == '__main__':

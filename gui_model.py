@@ -82,11 +82,11 @@ class DiceTableManager(object):
         return tuple(stat_info)
 
     def get_obj_to_save(self):
-        text = self.title_one_line
+        title = self.title_one_line
         graph_data = dt.graph_pts(self._table)
         tuple_list = self.tuple_list
         dice_list = self.dice_list
-        return fh.SavedDiceTable(text, tuple_list, dice_list, graph_data)
+        return fh.SavedDiceTable(title, tuple_list, dice_list, graph_data)
 
     def request_reload(self, saved_dice_table):
         self._table = saved_dice_table.dice_table
@@ -115,11 +115,11 @@ class SavedTables(object):
         if not saved_dice_table.is_empty() and saved_dice_table not in self._saved_tables:
             self._saved_tables = np.append(self._saved_tables, saved_dice_table)
 
-    def has_requested(self, text, tuple_list):
+    def has_requested(self, title, tuple_list):
         """
         :return: bool
         """
-        return fh.SavedDiceTable(text, tuple_list, [], []) in self._saved_tables
+        return fh.SavedDiceTable(title, tuple_list, [], []) in self._saved_tables
 
     def get_requested(self, text, tuple_list):
         dummy_saved_table = fh.SavedDiceTable(text, tuple_list, [], [])
@@ -136,11 +136,11 @@ class SavedTables(object):
 
     def get_labels(self):
         """
-        :return: [(saved_table.text., saved_table.tuple_list) ... ]
+        :return: [(saved_table.title., saved_table.tuple_list) ... ]
         """
         labels = []
         for saved_table in self._saved_tables:
-            labels.append((saved_table.text, saved_table.tuple_list))
+            labels.append((saved_table.title, saved_table.tuple_list))
         return labels
 
     def delete_all(self):
@@ -252,7 +252,7 @@ def get_graphs(saved_table_list, get_axes_not_pts=True):
             graph_data = saved_table.graph_axes
         else:
             graph_data = saved_table.graph_pts
-        list_of_graphs.append((saved_table.text, graph_data))
+        list_of_graphs.append((saved_table.title, graph_data))
     return x_range, y_range, list_of_graphs
 
 
@@ -272,13 +272,13 @@ class GraphBox(object):
 
     def get_requested_graphs(self, text_tuple_list_pairs):
         """
-        :returns: ( (x_range), (y_range), [(text, [graphing_values])...] )
+        :returns: ( (x_range), (y_range), [(title, [graphing_values])...] )
         """
         return get_graphs(self.interface.get_requested(text_tuple_list_pairs), self._get_axes_not_pts)
 
     def get_all_graphs(self):
         """
-        :returns: ( (x_range), (y_range), [(text, [graphing_values])...] )
+        :returns: ( (x_range), (y_range), [(title, [graphing_values])...] )
         """
         return get_graphs(self.interface.get_all(), self._get_axes_not_pts)
 
@@ -297,7 +297,7 @@ class GraphBox(object):
     def display(self):
         """
 
-        :return: ( (current text, current tuple_list), [(save1 txt, save1 tuple_list), ..] )
+        :return: ( (current title, current tuple_list), [(save1 txt, save1 tuple_list), ..] )
         """
         return self.interface.get_labels()
 
@@ -497,8 +497,8 @@ class StatBox(object):
         """
 
 
-        :return: [ info text: range+stddev,\n
-            stat text: \n
+        :return: [ info title: range+stddev,\n
+            stat title: \n
             values: tuple of what values are displayed\n
             min_max: tuple of min and max for slider
         """
@@ -507,15 +507,17 @@ class StatBox(object):
         stat_text, values = self.display_stats(val_1, val_2)
         return [info_text, stat_text, values, (val_min, val_max)]
 
+    def _adjust_value_to_within_min_max(self, value):
+        val_min, val_max = self._table.range
+        return min(val_max, max(val_min, value))
+
     def display_stats(self, val_1, val_2):
         """
         :return: [ str: stat info\n
             tuple: the two input vals adjusted for min/max
         """
-        val_min, val_max = self._table.range
-
-        val_1 = min(val_max, max(val_min, val_1))
-        val_2 = min(val_max, max(val_min, val_2))
+        val_1 = self._adjust_value_to_within_min_max(val_1)
+        val_2 = self._adjust_value_to_within_min_max(val_2)
 
         stat_list = list(range(min(val_1, val_2), max(val_1, val_2) + 1))
         stat_info = self._table.get_stats(stat_list)
@@ -538,13 +540,19 @@ class InfoBox(object):
         self._lines_per_page = {'full_text': 1, 'weights_info': 1}
         self._pages = {'full_text': [''], 'weights_info': ['']}
 
-    def get_info(self, key):
-        info = {'weights_info': self._table.weights_info, 'full_text': self._table.full_text}
-        return info[key]
+    def _get_text(self, key):
+        """
+        :param key: 'weights_info' or 'full_text'
+        """
+        text_selector = {'weights_info': self._table.weights_info,
+                         'full_text': self._table.full_text}
+        return text_selector[key].rstrip('\n')
 
-    def _parse_info(self, key):
-        """key = 'weights_info' or 'full_text'. preps text. returns new text"""
-        text = self.get_info(key).rstrip('\n')
+    def _format_text_or_pass(self, key):
+        """
+        :param key: 'weights_info' or 'full_text'
+        """
+        text = self._get_text(key)
         if key == 'weights_info':
             text = text.replace('a roll of ', '')
             text = text.replace(' a ', ' ')
@@ -552,24 +560,24 @@ class InfoBox(object):
         return text
 
     def make_pages(self, key, lines_per_page):
-        """makes a list of pages so that pages can be quickly referenced"""
+        """
+
+        :param key: 'weights_info' or ''full_text'
+        :param lines_per_page: int >=1
+        :return: list of pages
+        """
         self._lines_per_page[key] = lines_per_page
-        text = self._parse_info(key)
+        text = self._format_text_or_pass(key)
         lines = text.split('\n')
         grouping_into_pages_tool = [iter(lines)] * lines_per_page
         grouped_lines = zip_longest(*grouping_into_pages_tool, fillvalue=' ')
         self._pages[key] = ['\n'.join(page) for page in grouped_lines]
 
-    def display_current_page(self, key, lines_per_page):
-        """key is 'full_text' or 'weights_info'.  lines_per_page = int > 1.
-        checks if the number of pages changed, if so recalculates pages.
-        current page uses modulo, so can loop through any values.
-        returns (page_text, current_page_number, total_pages_number)."""
-        if self._lines_per_page[key] != lines_per_page:
-            self.make_pages(key, lines_per_page)
+    def display_current_page(self, key):
+        """
+        :param key: 'weights_info' or 'full_text'
+        """
         total_pages = len(self._pages[key])
-        if total_pages == 0:
-            total_pages = 1
         page_num = self._current_page[key] % total_pages
         if page_num == 0:
             page_num = total_pages
@@ -577,109 +585,30 @@ class InfoBox(object):
         self._current_page[key] = page_num
         return page, page_num, total_pages
 
-    def display_next_page(self, key, lines_per_page):
-        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
-        updates current_page += 1. loops from last to first page.
-        returns new self.display_current_page."""
+    def display_next_page(self, key):
         self._current_page[key] += 1
-        return self.display_current_page(key, lines_per_page)
+        return self.display_current_page(key)
 
-    def display_previous_page(self, key, lines_per_page):
-        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
-        updates current_page += 1. loops from first to last page.
-        returns new self.display_current_page."""
+    def display_previous_page(self, key):
         self._current_page[key] -= 1
-        return self.display_current_page(key, lines_per_page)
+        return self.display_current_page(key)
 
-    def display_chosen_page(self, page_number, key, lines_per_page):
-        """lines_per_page is int > 1. key is 'weights_info' or 'full_text'.
+    def display_chosen_page(self, page_number, key):
         self._current_page[key] = page_number
-        return self.display_current_page(key, lines_per_page)"""
-        self._current_page[key] = page_number
-        return self.display_current_page(key, lines_per_page)
+        return self.display_current_page(key)
 
-    def _general_info(self):
-        """returns a string of some general info"""
-        # vals_min, vals_max = self._table.get_info('range')
-        # mean = self._table.get_info('mean')
-        # stddev = self._table.get_info('stddev')
-        # text = (
-        #     'the range of numbers is {:,}-{:,}\n'.format(vals_min, vals_max) +
-        #     'the mean is {:,}\nthe stddev is {}'.format(round(mean, 4), stddev)
-        # )
-        return self._table.get_range_stats_text()
-
-    def display_paged(self, weights_lines, full_text_lines):
-        """weights_lines and full_text_lines are ints > 1 = lines_per_page
-        for weights_info and full_text.  updates pages and
-        returns [general_info, table_str, (weights_info), (full_text)]"""
-        self.make_pages('weights_info', weights_lines)
-        self.make_pages('full_text', full_text_lines)
+    def display_paged(self, lines_per_weight_page, lines_per_full_text_page):
+        """
+        :return: [general_info, table_str, (weights_info), (full_text)]"""
+        self.make_pages('weights_info', lines_per_weight_page)
+        self.make_pages('full_text', lines_per_full_text_page)
         return [self._table.get_range_stats_text(), self._table.title,
-                self.display_current_page('weights_info', weights_lines),
-                self.display_current_page('full_text', full_text_lines)]
+                self.display_current_page('weights_info'),
+                self.display_current_page('full_text')]
 
     def display(self):
-        """returns [general_info, table_str, weights_info, full_text].
-        here weights_info and full_text are not page_views.  this is for a
-        scrolling display."""
-        return [self._general_info(), self._table.title,
-                self._parse_info('weights_info'), self._parse_info('full_text')]
-
-
-if __name__ == '__main__':
-    import time
-
-
-    def timer(times, func, *args):
-        start = time.clock()
-        for _ in range(times):
-            func(*args)
-        return time.clock() - start
-        # 0.23, 0.16   0.16,0.14
-
-
-    table = DiceTableManager()
-    saved = SavedTables()
-    info_box = InfoBox(table)
-    interface = CurrentAndSavedInterface(table, saved)
-    for _ in range(10):
-        saved.save_new(table.get_obj_to_save())
-        table.request_add(100, dt.Die(2))
-
-    saved.save_new(table.get_obj_to_save())
-    saved.save_new(table.get_obj_to_save())
-    test_text = table.title_one_line
-    test_tuples = table.tuple_list
-    txt_tpls = saved.get_labels() + [('hi', [(1, 2)])]
-
-
-    def list_comp(text_tuples):
-        return [fh.SavedDiceTable(text, tuples, [], []) for text, tuples in text_tuples]
-
-
-    def list_for(text_tuples):
-        out = []
-        for text, tuples in text_tuples:
-            out.append(fh.SavedDiceTable(text, tuples, [], []))
-        return out
-
-
-    test_text_tuples = [(str(num), [(num, num)]) for num in range(100)]
-
-    print('has : ', timer(1000, saved.has_requested, test_text, test_tuples))
-    print('has not: ', timer(1000, saved.has_requested, test_text, [(1, 2)]))
-    print('get : ', timer(1000, saved.get_requested, test_text, test_tuples))
-    print('get not: ', timer(1000, saved.get_requested, test_text, [(1, 2)]))
-    print('get all: ', timer(1000, saved.get_all))
-    print('get labels: ', timer(1000, saved.get_labels))
-    print('comp: ', timer(1000, list_comp, test_text_tuples))
-    print('for: ', timer(1000, list_for, test_text_tuples))
-    print('get tables: ', timer(1000, interface.get_requested, txt_tpls))
-    for obj in interface.get_requested(txt_tpls):
-        print(obj.is_empty())
-    x = interface.get_requested(txt_tpls)
-    print()
-    while x:
-        tst = x.pop()
-        print(tst in x)
+        """
+        :return: [general info, table title, weights_info, full_text]
+        """
+        return [self._table.get_range_stats_text(), self._table.title,
+                self._format_text_or_pass('weights_info'), self._format_text_or_pass('full_text')]

@@ -13,12 +13,16 @@ else:
 
 class SavedDiceTable(object):
     """a read-only object holding expensive-to-generate DiceTable info"""
-    def __init__(self, text, tuple_list, dice_list, graph_axes):
+    def __init__(self, title, tuple_list, dice_list, graph_axes):
         """
-        text = string, name of table. dice_list = tuple list [(die, number)].
+        title = string, name of table. dice_list = tuple list [(die, number)].
         tuple_list = tuple list of table.frequency_all(), graph_axes =  [(x-axis data), (y-axis data)]
+        :param title:
+        :param tuple_list:
+        :param dice_list:
+        :param graph_axes:
         """
-        self._text = text
+        self._title = title
         self._tuple_list = tuple_list
         self._dice_list = dice_list
         self._graph_axes = graph_axes
@@ -48,8 +52,8 @@ class SavedDiceTable(object):
         return self._tuple_list[:]
 
     @property
-    def text(self):
-        return self._text
+    def title(self):
+        return self._title
 
     @property
     def dice_table(self):
@@ -60,7 +64,7 @@ class SavedDiceTable(object):
         return new_table
 
     def __eq__(self, other):
-        return self.text == other.text and self.tuple_list == other.tuple_list
+        return self.title == other.title and self.tuple_list == other.tuple_list
 
     def __ne__(self, other):
         return not self == other
@@ -70,7 +74,7 @@ class SavedDiceTable(object):
 
     def verify_all_types(self):
         msg = 'error:'
-        msg += check_datum_for_types(self._text, (str,), ' invalid text value')
+        msg += check_datum_for_types(self._title, (str,), ' invalid title value')
         msg += check_tuples_in_list_for_type_sequence(self._tuple_list, [(int,), (int,)], ' invalid tuple list')
         msg += check_tuples_in_list_for_type_sequence(self._dice_list, [(dt.ProtoDie,), (int,)],
                                                       ' invalid dice list')
