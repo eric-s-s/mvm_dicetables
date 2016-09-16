@@ -202,7 +202,7 @@ class TestMVM(unittest.TestCase):
         self.ST.save_new(obj)
         self.assertTrue(self.ST.get_requested('hi', [(1, 1), (2, 1)]).is_empty())
 
-    def test_SavedTables_get_requested_returns_empty_if_not_text(self):
+    def test_SavedTables_get_requested_returns_empty_if_not_title(self):
         self.DTM.request_add(1, dt.Die(2))
         obj = self.DTM.get_obj_to_save()
         self.ST.save_new(obj)

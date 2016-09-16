@@ -15,7 +15,7 @@ class SavedDiceTable(object):
     """a read-only object holding expensive-to-generate DiceTable info"""
     def __init__(self, title, tuple_list, dice_list, graph_axes):
         """
-        title = string, name of table. dice_list = tuple list [(die, number)].
+        title = string, title of table. dice_list = tuple list [(die, number)].
         tuple_list = tuple list of table.frequency_all(), graph_axes =  [(x-axis data), (y-axis data)]
         :param title:
         :param tuple_list:

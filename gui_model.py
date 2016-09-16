@@ -121,8 +121,8 @@ class SavedTables(object):
         """
         return fh.SavedDiceTable(title, tuple_list, [], []) in self._saved_tables
 
-    def get_requested(self, text, tuple_list):
-        dummy_saved_table = fh.SavedDiceTable(text, tuple_list, [], [])
+    def get_requested(self, title, tuple_list):
+        dummy_saved_table = fh.SavedDiceTable(title, tuple_list, [], [])
         for data_obj in self._saved_tables:
             if dummy_saved_table == data_obj:
                 return data_obj
@@ -146,9 +146,9 @@ class SavedTables(object):
     def delete_all(self):
         self._saved_tables = np.array([], dtype=object)
 
-    def delete_requested(self, text_tuple_list_pairs):
-        exclude_from_new = [fh.SavedDiceTable(text, tuple_list, [], [])
-                            for text, tuple_list in text_tuple_list_pairs]
+    def delete_requested(self, title_tuple_list_pairs):
+        exclude_from_new = [fh.SavedDiceTable(title, tuple_list, [], [])
+                            for title, tuple_list in title_tuple_list_pairs]
         new_data_array = np.array([], dtype=object)
         for saved_table in self._saved_tables:
             if saved_table not in exclude_from_new:
@@ -197,19 +197,19 @@ class CurrentAndSavedInterface(object):
     def get_labels(self):
         return self.get_label_current(), self.get_label_saved()
 
-    def is_current_table(self, text, tuple_list):
-        return (text, tuple_list) == self.get_label_current()
+    def is_current_table(self, title, tuple_list):
+        return (title, tuple_list) == self.get_label_current()
 
     def current_is_empty(self):
         return self.get_label_current() == ('', [(0, 1)])
 
-    def get_requested(self, text_tuple_list_pairs):
-        no_duplicates = remove_duplicates_from_list(text_tuple_list_pairs)
+    def get_requested(self, title_tuple_list_pairs):
+        no_duplicates = remove_duplicates_from_list(title_tuple_list_pairs)
         requested = []
-        for text, tuple_list in no_duplicates:
-            if self._saved_tables.has_requested(text, tuple_list):
-                requested.append(self._saved_tables.get_requested(text, tuple_list))
-            elif self.is_current_table(text, tuple_list):
+        for title, tuple_list in no_duplicates:
+            if self._saved_tables.has_requested(title, tuple_list):
+                requested.append(self._saved_tables.get_requested(title, tuple_list))
+            elif self.is_current_table(title, tuple_list):
                 requested.append(self.get_and_save_current())
         return requested
 
@@ -222,12 +222,12 @@ class CurrentAndSavedInterface(object):
         self._saved_tables.delete_all()
         self._saved_tables.write_to_file()
 
-    def delete_requested(self, text_tuple_list_pairs):
-        self._saved_tables.delete_requested(text_tuple_list_pairs)
+    def delete_requested(self, title_tuple_list_pairs):
+        self._saved_tables.delete_requested(title_tuple_list_pairs)
         self._saved_tables.write_to_file()
 
-    def reload_requested_as_current(self, text, tuple_list):
-        to_reload = self._saved_tables.get_requested(text, tuple_list)
+    def reload_requested_as_current(self, title, tuple_list):
+        to_reload = self._saved_tables.get_requested(title, tuple_list)
         if not to_reload.is_empty():
             self._current_table.request_reload(to_reload)
 
@@ -270,11 +270,11 @@ class GraphBox(object):
     def get_and_save_current(self):
         return self.interface.get_and_save_current()
 
-    def get_requested_graphs(self, text_tuple_list_pairs):
+    def get_requested_graphs(self, title_tuple_list_pairs):
         """
         :returns: ( (x_range), (y_range), [(title, [graphing_values])...] )
         """
-        return get_graphs(self.interface.get_requested(text_tuple_list_pairs), self._get_axes_not_pts)
+        return get_graphs(self.interface.get_requested(title_tuple_list_pairs), self._get_axes_not_pts)
 
     def get_all_graphs(self):
         """
@@ -282,8 +282,8 @@ class GraphBox(object):
         """
         return get_graphs(self.interface.get_all(), self._get_axes_not_pts)
 
-    def delete_requested(self, text_tuple_list_pairs):
-        self.interface.delete_requested(text_tuple_list_pairs)
+    def delete_requested(self, title_tuple_list_pairs):
+        self.interface.delete_requested(title_tuple_list_pairs)
 
     def delete_all(self):
         self.interface.delete_all()
@@ -301,8 +301,8 @@ class GraphBox(object):
         """
         return self.interface.get_labels()
 
-    def reload_saved_dice_table(self, text, tuple_list):
-        self.interface.reload_requested_as_current(text, tuple_list)
+    def reload_saved_dice_table(self, title, tuple_list):
+        self.interface.reload_requested_as_current(title, tuple_list)
 
 
 def get_die_roll_details(die):
@@ -497,8 +497,8 @@ class StatBox(object):
         """
 
 
-        :return: [ info title: range+stddev,\n
-            stat title: \n
+        :return: [ info text: range+stddev,\n
+            stat text: \n
             values: tuple of what values are displayed\n
             min_max: tuple of min and max for slider
         """

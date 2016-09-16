@@ -72,7 +72,7 @@ class FlashButton(Button):
         self.background_color = self._original_background
 # kv file line NONE
 class FlashLabel(Button):
-    '''a label that flashes for delay_time=0.5 sec when title is added by
+    '''a label that flashes for delay_time=0.5 sec when text is added by
     add_text. can be turned off with boolean do_flash'''
     def __init__(self, delay_time=0.5, **kwargs):
         super(FlashLabel, self).__init__(**kwargs)
@@ -86,7 +86,7 @@ class FlashLabel(Button):
         self.background_color = [0.2, 0.2, 1, 0.2]
         Clock.schedule_once(self.callback, self.delay_time)
     def add_text(self, text, do_flash=True):
-        '''flahes (or not) when title is changed'''
+        '''flahes (or not) when text is changed'''
         self.text = text
         self.color = [1, 1, 1, 1]
         self.background_color = [0, 0, 0, 0]
@@ -121,7 +121,7 @@ class NumberInput(Button):
                               on_press=self.add_digit))
         pad.add_widget(Button(text='ENT', size_hint=(0.39, 0.25),
                               on_press=self.enter_val))
-        self.num_pad = Popup(title='', content=pad, size_hint=(0.8, 0.5),
+        self.num_pad = Popup(text='', content=pad, size_hint=(0.8, 0.5),
                              pos_hint={'x':0.1, 'y':0})
         self.text = ''
         self.background_color = (0.4, 0.2, 1.0, 0.8)
@@ -130,45 +130,45 @@ class NumberInput(Button):
         self.sign = 1
     def add_digit(self, btn):
         '''fired when 0-9 is pressed'''
-        if self.num_pad.title == ' ':
-            self.num_pad.title = btn.title
+        if self.num_pad.text == ' ':
+            self.num_pad.text = btn.text
         else:
-            self.num_pad.title += btn.title
+            self.num_pad.text += btn.text
     def back_space(self, btn):
         '''fired when BS is pressed'''
-        if self.num_pad.title != ' ':
-            if self.num_pad.title[:-1]:
-                self.num_pad.title = self.num_pad.title[:-1]
+        if self.num_pad.text != ' ':
+            if self.num_pad.text[:-1]:
+                self.num_pad.text = self.num_pad.text[:-1]
             else:
-                self.num_pad.title = ' '
+                self.num_pad.text = ' '
     def open_pad(self, btn):
         '''no new info'''
         self.to_add = 0
         self.sign = 1
         self.num_pad.open(self)
-        self.num_pad.title = ' '
-        self.num_pad.title_size = self.num_pad.height/8
+        self.num_pad.text = ' '
+        self.num_pad.text_size = self.num_pad.height/8
     def plus_minus(self, btn):
         '''uses self.to_add and self.sign to do plus, minus, equals.  on equals,
-        makes title to self.to_add and resets'''
-        if self.num_pad.title != ' ':
-            self.to_add += int(self.num_pad.title) * self.sign
-        if btn.title == '-':
+        makes text to self.to_add and resets'''
+        if self.num_pad.text != ' ':
+            self.to_add += int(self.num_pad.text) * self.sign
+        if btn.text == '-':
             self.sign = -1
-        if btn.title == '+':
+        if btn.text == '+':
             self.sign = 1
-        if btn.title == '=':
-            self.num_pad.title = str(self.to_add)
+        if btn.text == '=':
+            self.num_pad.text = str(self.to_add)
             self.to_add = 0
             self.sign = 1
         else:
-            self.num_pad.title = ' '
+            self.num_pad.text = ' '
     def enter_val(self, btn):
         '''when you press enter, always changes changed, you can use it to fire
         events'''
         self.num_pad.dismiss()
-        if self.num_pad.title != ' ':
-            self.text = self.num_pad.title
+        if self.num_pad.text != ' ':
+            self.text = self.num_pad.text
             #pressing enter can fire event with changed.
             self.changed = not self.changed
 
@@ -188,11 +188,11 @@ class NumberSelect(BoxLayout):
         pad.open()
     def get_values(self):
         '''gets info from numberselect for getting weights'''
-        return (self.ids['title'].title, int(self.ids['number'].title))
-    def set_text(self, title, number):
-        '''title is string, number is int. sets both internal buttons'''
-        self.ids['title'].title = title
-        self.ids['number'].title = str(number)
+        return (self.ids['text'].text, int(self.ids['number'].text))
+    def set_text(self, text, number):
+        '''text is string, number is int. sets both internal buttons'''
+        self.ids['text'].text = text
+        self.ids['number'].text = str(number)
 # for NumerberSelect
 # kv file line NONE
 class SelectPad(Popup):
@@ -212,11 +212,11 @@ class SelectPad(Popup):
             self.content.add_widget(Button(text=str(number),
                                            size_hint=(0.33, y_hint_),
                                            on_press=self.record_number))
-        self.title = self.parent_btn.ids['title'].title
-        self.title_align = 'center'
+        self.text = self.parent_btn.ids['text'].text
+        self.text_align = 'center'
     def record_number(self, btn):
         '''assigns button's number to parent'''
-        self.parent_btn.ids['number'].title = btn.title
+        self.parent_btn.ids['number'].text = btn.text
         self.dismiss()
 #for AddBox.add_weights  and AddBox.record_weights
 # kv file line 19
@@ -224,7 +224,7 @@ class WeightsPopup(Popup):
     '''the popup called when weighting a die'''
     def __init__(self, parent_obj, text_list, **kwargs):
         '''parent_obj is the owner of the popup where the weights will be
-        recorded. text_list is a list of strings for NumberSelect titles.'''
+        recorded. text_list is a list of strings for NumberSelect texts.'''
         super(WeightsPopup, self).__init__(**kwargs)
         self.parent_obj = parent_obj
         self.pack(text_list)
@@ -287,14 +287,14 @@ class AddBox(BoxLayout):
         self.display_die()
     def update(self):
         '''called by main app at dice change'''
-        self.ids['current'].title = (self.view_model.display_current_table())
+        self.ids['current'].text = (self.view_model.display_current_table())
     def assign_size_btn(self, btn):
         '''assigns the die size and die when a preset btn is pushed'''
-        die_size = int(btn.title[1:])
+        die_size = int(btn.text[1:])
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_size_text(self, text):
-        '''asigns the die size and die when title is entered'''
+        '''asigns the die size and die when text is entered'''
         top = 200
         bottom = 2
         int_string = text
@@ -302,7 +302,7 @@ class AddBox(BoxLayout):
             die_size = int(text)
             die_size = min(top, max(bottom, die_size))
         if text != str(die_size):
-            self.ids['custom_input'].title = str(die_size)
+            self.ids['custom_input'].text = str(die_size)
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_mod(self):
@@ -311,7 +311,7 @@ class AddBox(BoxLayout):
         self.view_model.set_mod(mod)
         self.display_die()
     def assign_multiplier(self, spinner, text):
-        '''assigns a die multiplier and new_die based on spinner's title.'''
+        '''assigns a die multiplier and new_die based on spinner's text.'''
         multiplier = int(text[1:])
         self.view_model.set_multiplier(multiplier)
         self.display_die()
@@ -328,8 +328,8 @@ class AddBox(BoxLayout):
                               on_press=lambda btn: btn.delay(self.add, btn))
             self.ids['add_it'].add_widget(btn)
     def add(self, btn):
-        '''uses btn title and die stored in view_model to add to current table'''
-        self.view_model.add(int(btn.title))
+        '''uses btn text and die stored in view_model to add to current table'''
+        self.view_model.add(int(btn.text))
         self.parent.do_update()
     def record_weights(self, text_val_lst):
         '''takes a list of [('weight for <roll>', int=the_weight)...] and makes
@@ -353,8 +353,8 @@ class ChangeBox(GridLayout):
         self.cols = 1
         self.old_dice = []
     def add_rm(self, btn):
-        '''uses die stored in button and btn title to request add or rm'''
-        self.view_model.add_rm(int(btn.title), btn.die)
+        '''uses die stored in button and btn text to request add or rm'''
+        self.view_model.add_rm(int(btn.text), btn.die)
         self.parent.do_update()
     def reset(self, btn):
         '''resets current table back to empty and display instructions'''
@@ -488,16 +488,16 @@ class PlotPopup(Popup):
             lines, remainder = divmod(int(btn.texture_size[0] + 10),
                                       int(self.parent.width))
             lines += bool(remainder)
-            #make long btn.title multiline
-            split_at, remainder = divmod(len(btn.title), lines)
+            #make long btn.text multiline
+            split_at, remainder = divmod(len(btn.text), lines)
             split_at += bool(remainder)
             new_text_lst = []
-            copy = btn.title
+            copy = btn.text
             while len(copy) > split_at:
                 new_text_lst.append(copy[:split_at])
                 copy = copy[split_at:]
             new_text_lst.append(copy)
-            btn.title = '\n'.join(new_text_lst)
+            btn.text = '\n'.join(new_text_lst)
 
             btn.width = min(btn.texture_size[0] + 10, self.parent.width)
             btn.height = max(self.ids['legend'].height, single_line_ht * lines)
@@ -547,11 +547,11 @@ class PlotCheckBox(BoxLayout):
         '''makes a new two-line display label while preserving original in'''
         cut_off = 30
         if len(self.text) <= cut_off:
-            self.ids['label'].title = text
+            self.ids['label'].text = text
         else:
             line_1 = text[:len(self.text)/2]
             line_2 = text[len(self.text)/2:].replace(split_char, '\n', 1)
-            self.ids['label'].title = (line_1 + line_2)
+            self.ids['label'].text = (line_1 + line_2)
 # kv file line 273
 class GraphBox(BoxLayout):
     '''buttons for making graphs.  parent app is what's called for dice actions
@@ -560,9 +560,9 @@ class GraphBox(BoxLayout):
                                              mvm.SavedTables(), True))
     def __init__(self, **kwargs):
         super(GraphBox, self).__init__(**kwargs)
-        self.confirm = Popup(title='Delete everything?', content=BoxLayout(),
-                             size_hint=(0.8, 0.4), title_align='center',
-                             title_size=75)
+        self.confirm = Popup(text='Delete everything?', content=BoxLayout(),
+                             size_hint=(0.8, 0.4), text_align='center',
+                             text_size=75)
         self.confirm.content.add_widget(Button(text='EVERY\nTHING!!!',
                                                on_press=self.clear_all,
                                                texture_size=self.size))
@@ -651,8 +651,8 @@ class StatBox(BoxLayout):
         super(StatBox, self).__init__(**kwargs)
 
     def display_stats(self, stat_text, vals):
-        '''takes a stat title and two values, and displays them.'''
-        self.ids['stat_text'].title = stat_text
+        '''takes a stat text and two values, and displays them.'''
+        self.ids['stat_text'].text = stat_text
         self.ids['slider_1'].value = vals[0]
         self.ids['slider_2'].value = vals[1]
     def update(self):
@@ -661,15 +661,15 @@ class StatBox(BoxLayout):
         val_2 = int(self.ids['slider_2'].value)
         info_text, stat_text, vals, min_max = self.view_model.display(val_1,
                                                                       val_2)
-        self.ids['info_text'].title = info_text
+        self.ids['info_text'].text = info_text
         self.ids['slider_1'].max = self.ids['slider_2'].max = min_max[1]
         self.ids['slider_1'].min = self.ids['slider_2'].min = min_max[0]
         self.display_stats(stat_text, vals)
     def assign_text_value(self):
         '''called by text_input to assign that value to sliders and
         show stats'''
-        val_1 = int(self.ids['slider_1_text'].title.replace(',', ''))
-        val_2 = int(self.ids['slider_2_text'].title.replace(',', ''))
+        val_1 = int(self.ids['slider_1_text'].text.replace(',', ''))
+        val_2 = int(self.ids['slider_2_text'].text.replace(',', ''))
         self.ids['slider_1'].value = val_1
         self.ids['slider_2'].value = val_2
     def assign_slider_value(self):
@@ -691,23 +691,23 @@ class PageBox(BoxLayout):
         super(PageBox, self).__init__(**kwargs)
     def reset_sizes(self, ratios):
         '''reset font_size = f_size,
-        [title ratio, , slider ratio, button ratio, title ratio] = ratios'''
+        [text ratio, , slider ratio, button ratio, text ratio] = ratios'''
         self.ids['page_box_title'].size_hint_y = ratios[0]
         self.ids['buttons_container'].size_hint_y = ratios[1]
         self.ids['text_shell'].size_hint_y = ratios[2]
-    def set_title(self, title):
-        '''title is a string. sets the title of the box.'''
-        self.ids['page_box_title'].title = title
+    def set_title(self, text):
+        '''text is a string. sets the text of the box.'''
+        self.ids['page_box_title'].text = text
     def get_lines_number(self, fudge_factor=0.83):
         '''returns an int.  the number of lines the pagebox can display'''
         return int(self.ids['text_container'].height * fudge_factor/
                    float(self.ids['text_container'].font_size))
     def set_text(self, page, page_num, total_pages):
-        '''sets displays according page=str-title to display, page_num=int-
+        '''sets displays according page=str-text to display, page_num=int-
         current page, total_pages=int'''
-        self.ids['text_container'].title = page
+        self.ids['text_container'].text = page
         self.ids['text_container'].text_size = self.ids['text_container'].size
-        self.ids['pages'].title = '{}/{}'.format(page_num, total_pages)
+        self.ids['pages'].text = '{}/{}'.format(page_num, total_pages)
         #in order to reverse slider movement,the value used by slider (having
         #the same max and min as the pages) is the opposite
         slider_val = total_pages + 1 - page_num
@@ -748,8 +748,8 @@ class InfoBox(BoxLayout):
             self.ids['weights_info'].get_lines_number(),
             self.ids['full_text'].get_lines_number()
             )
-        self.ids['general_info'].title = all_info[0]
-        self.ids['table_str'].title = all_info[1]
+        self.ids['general_info'].text = all_info[0]
+        self.ids['table_str'].text = all_info[1]
         self.ids['weights_info'].set_text(*all_info[2])
         self.ids['full_text'].set_text(*all_info[3])
     
@@ -788,7 +788,7 @@ class DicePlatform(BoxLayout):
         else:
             header = ('TRIED TO LOAD HISTORY BUT\nTHE FILE HAD AN ERROR\n'+
                       'whatcha gonna do about it?  cry?\n\n')
-        self.ids['change_box'].ids['intro'].title = header + INTRO_TEXT
+        self.ids['change_box'].ids['intro'].text = header + INTRO_TEXT
 
     def do_update(self):
         '''updates appropriate things for any die add or remove'''

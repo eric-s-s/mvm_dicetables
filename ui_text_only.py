@@ -58,7 +58,7 @@ class Choices(object):
     '''a convenient way to make menu choices.  the first element in a choice list
     is the string to add to each element string. each element in a choice list is
     a tuple.  it contains
-    (function name, (args for function), 'what to display', ('cmnd1', 'cmd2'...))
+    (function title, (args for function), 'what to display', ('cmnd1', 'cmd2'...))
     '''
     def __init__(self, filler, choice_list=None):
         '''nose_choice = Choices('to', [(pick_nose, (nose, finger),
