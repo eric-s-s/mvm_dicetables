@@ -43,7 +43,7 @@ HELP_TEXT = ('this is a platform for finding the probability of dice ' +
 
 ###### general tool #######
 def make_lines(text, min_lines=1):
-    '''changes long title into multi-line title'''
+    """changes long title into multi-line title"""
     line_len = 30
     lines = []
     while len(text) > line_len:
@@ -65,31 +65,31 @@ def make_tool_tip_for_die(label, text, delay=300):
 
 
 class NumberInput(tk.Entry):
-    '''a title entry that only allows digits and '+', '-', ' '. will calculate
-    basic arithmatic'''
+    """a title entry that only allows digits and '+', '-', ' '. will calculate
+    basic arithmatic"""
     def __init__(self, master, reset=True, *args, **kwargs):
-        '''exactly like entry, but reset decides if it will reset when mouse
-        clicked'''
+        """exactly like entry, but reset decides if it will reset when mouse
+        clicked"""
         tk.Entry.__init__(self, master, *args, **kwargs)
         vcmd = (self.register(self.validate), '%S')
         self.config(validate='key', validatecommand=vcmd)
         if reset:
             self.bind('<Button-1>', self.reset)
     def reset(self, event):
-        '''erases the entry on a mouse click inside box'''
+        """erases the entry on a mouse click inside box"""
         self.delete(0, tk.END)
     def validate(self, text):
-        '''checks to make sure each piece of the title is in acceptable list'''
+        """checks to make sure each piece of the title is in acceptable list"""
         for element in text:
             if element not in '1234567890+-* ':
                 self.bell()
                 return False
         return True
     def calculate(self):
-        '''parses title to calculatefinal value'''
+        """parses title to calculatefinal value"""
         text = self.get()
         def parse_text(text):
-            '''cuts title to list and removes spaces'''
+            """cuts title to list and removes spaces"""
             elements = []
             number_str = ''
             for element in text:
@@ -104,7 +104,7 @@ class NumberInput(tk.Entry):
                 elements.append(number_str)
             return elements
         def apply_signs(elements):
-            '''calculates +/- and returns a list of ints and '*'.'''
+            """calculates +/- and returns a list of ints and '*'."""
             sign = 1
             new = []
             for string in elements:
@@ -117,7 +117,7 @@ class NumberInput(tk.Entry):
                     sign *= -1
             return new
         def add_multiply(lst):
-            '''looks for '*' and then multiplies first and returns sum or 0'''
+            """looks for '*' and then multiplies first and returns sum or 0"""
             front = []
             back = lst[:]
             while back:
@@ -134,15 +134,15 @@ class NumberInput(tk.Entry):
         return add_multiply(apply_signs(parse_text(text)))
 #######  AddBox  and widget########
 class WeightPopup(object):
-    '''a popup that records weights for a weighted die'''
+    """a popup that records weights for a weighted die"""
     def __init__(self, master, text_list):
-        '''need a list of texts of for "weight for <roll>". creates TopLevel
-        and populates it. MASTER MUST HAVE "record_weights()" METHOD!!!'''
+        """need a list of texts of for "weight for <roll>". creates TopLevel
+        and populates it. MASTER MUST HAVE "record_weights()" METHOD!!!"""
         self.master = master
         self.window = tk.Toplevel()
         self.add_weights(text_list)
     def add_weights(self, text_list):
-        '''the function that populate the toplevel'''
+        """the function that populate the toplevel"""
         max_cols = 12
         self.window.title('makin weights')
         for index, title in enumerate(text_list):
@@ -157,8 +157,8 @@ class WeightPopup(object):
         col, row = divmod(len(text_list), max_cols)
         enter_weights.grid(column=col, row=row)
     def record_weights(self):
-        '''records weights as tuples (title, weight_val) and passes to parent's
-        record_weights()'''
+        """records weights as tuples (title, weight_val) and passes to parent's
+        record_weights()"""
         out = []
         for widget in self.window.winfo_children():
             if isinstance(widget, tk.Scale):
@@ -166,9 +166,9 @@ class WeightPopup(object):
         self.master.record_weights(out)
         self.window.destroy()
 class AddBox(object):
-    '''a view for adding dice.  contains a frame for display'''
+    """a view for adding dice.  contains a frame for display"""
     def __init__(self, master):
-        '''master is an object that has master.frame.'''
+        """master is an object that has master.frame."""
         self.master = master
         self.frame = tk.Frame(master.frame)
 
@@ -237,18 +237,18 @@ class AddBox(object):
         self.display_die()
 
     def update(self):
-        '''called by main app at dice change'''
+        """called by main app at dice change"""
         self.current.set(make_lines(self.view_model.display_current_table(),
                                     min_lines=5))
     def assign_size_btn(self, txt):
-        '''assigns the die size and die when a preset btn is pushed'''
+        """assigns the die size and die when a preset btn is pushed"""
         die_size = int(txt[1:])
         self.any_size.delete(0, tk.END)
         self.any_size.insert(tk.END, str(die_size))
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_size_text(self, event):
-        '''asigns the die size and die when title is entered'''
+        """asigns the die size and die when title is entered"""
         top = 200
         bottom = 2
         die_size = event.widget.calculate()
@@ -258,17 +258,17 @@ class AddBox(object):
         self.view_model.set_size(die_size)
         self.display_die()
     def assign_mod(self, mod_val):
-        '''assigns a die modifier and new die when slider is moved'''
+        """assigns a die modifier and new die when slider is moved"""
         mod = int(mod_val)
         self.view_model.set_mod(mod)
         self.display_die()
     def assign_multiplier(self, multiplier_var, *args):
-        '''assigns a die multiplier and new_die based on spinner's title.'''
+        """assigns a die multiplier and new_die based on spinner's title."""
         multiplier = int(multiplier_var.get()[1:])
         self.view_model.set_multiplier(multiplier)
         self.display_die()
     def display_die(self):
-        '''all changes to size, mod and weight call this function'''
+        """all changes to size, mod and weight call this function"""
         for widget in self.adder.winfo_children():
             widget.destroy()
         to_add = self.view_model.display_die()
@@ -281,34 +281,34 @@ class AddBox(object):
                                command=partial(self.add, add_val))
             widget.pack(side=tk.LEFT)
     def add_weights(self):
-        '''sends view_model info to a WeightPopup'''
+        """sends view_model info to a WeightPopup"""
         WeightPopup(self, self.view_model.get_weights_text())
     def record_weights(self, lst):
-        '''passes WeightPopup's infor to the view_model.'''
+        """passes WeightPopup's infor to the view_model."""
         self.view_model.record_weights_text(lst)
         self.display_die()
     def add(self, txt):
-        '''uses btn title and die stored in view_model to add to current table'''
+        """uses btn title and die stored in view_model to add to current table"""
         self.view_model.add(int(txt))
         self.master.do_update()
 ###### ChangeBox no extra classes #######
 class ChangeBox(object):
-    '''a view for changing dice.  contains a frame for display'''
+    """a view for changing dice.  contains a frame for display"""
     def __init__(self, master):
-        '''master is an object that has master.frame.'''
+        """master is an object that has master.frame."""
         self.master = master
         self.frame = tk.Frame(master.frame)
         self.view_model = mvm.ChangeBox(mvm.DiceTableManager())
     def add_rm(self, text, die):
-        '''uses die stored in button and btn title to request add or rm'''
+        """uses die stored in button and btn title to request add or rm"""
         self.view_model.add_rm(int(text), die)
         self.master.do_update()
     def reset(self):
-        '''resets current table back to empty and display instructions'''
+        """resets current table back to empty and display instructions"""
         self.view_model.reset()
         self.master.do_update()
     def update(self):
-        '''updates the current dice after add, rm or clear'''
+        """updates the current dice after add, rm or clear"""
         button_list = self.view_model.display()
         die_tool_tip_list = self.view_model.get_dice_details()
         for widget in self.frame.winfo_children():
@@ -344,9 +344,9 @@ class ChangeBox(object):
 
 ########## StatBox #########
 class StatBox(object):
-    '''a view for changing dice.  contains a frame for display'''
+    """a view for changing dice.  contains a frame for display"""
     def __init__(self, master, view_model):
-        '''master is an object that has master.frame.'''
+        """master is an object that has master.frame."""
         self.master = master
         self.frame = tk.Frame(master.frame)
         self.frame.columnconfigure(0, weight=1)
@@ -378,8 +378,8 @@ class StatBox(object):
         right_input = NumberInput(self.frame, width=10, bg='ivory')
         right_input.grid(row=4, column=0)
         def set_reset(int_var, event):
-            '''gets the int from a NumberInput from the event
-            and assigns to IntVar. resets NumberInput'''
+            """gets the int from a NumberInput from the event
+            and assigns to IntVar. resets NumberInput"""
             int_var.set(event.widget.calculate())
             event.widget.reset(event)
             self.assign_slider_value()
@@ -397,7 +397,7 @@ class StatBox(object):
         stat = tk.Label(self.frame, textvariable=self.stat_text)
         stat.grid(row=5, column=0, columnspan=3, sticky=tk.EW)
     def update(self):
-        '''called when dice list changes.'''
+        """called when dice list changes."""
         val_1 = int(self.left.get())
         val_2 = int(self.right.get())
         info_text, stat_text, vals, min_max = self.view_model.display(val_1,
@@ -409,12 +409,12 @@ class StatBox(object):
         self.right.config(to=min_max[0])
         self.display_stats(stat_text, vals)
     def display_stats(self, stat_text, vals):
-        '''takes a stat title and two values, and displays them.'''
+        """takes a stat title and two values, and displays them."""
         self.stat_text.set(stat_text)
         self.left.set(vals[0])
         self.right.set(vals[1])
     def assign_slider_value(self):
-        '''the main function. displays stats of current slider values.'''
+        """the main function. displays stats of current slider values."""
         val_1 = self.left.get()
         val_2 = self.right.get()
         self.display_stats(*self.view_model.display_stats(val_1, val_2))
@@ -422,13 +422,13 @@ class StatBox(object):
 #####  GraphBox  #########
 #popup choice for graph/history menus
 class HistoryChooser(object):
-    '''makes a popup of choices from master's history.  does the action passed
-    to it.'''
+    """makes a popup of choices from master's history.  does the action passed
+    to it."""
     def __init__(self, master, partial_action, button_name, add_current=False):
-        '''creates a popup of check boxes.  and a button with title=button_name.
+        """creates a popup of check boxes.  and a button with title=button_name.
         when button is pressed, makes a list of all chosen histories and does
         the partial action on the list. add_current includes the current table
-        in the list.'''
+        in the list."""
         self.master = master
         self.action = partial_action
         self.choices = []
@@ -440,8 +440,8 @@ class HistoryChooser(object):
         tk.Button(self.window, text='Cancel', bg='RosyBrown1',
                   command=self.window.destroy).pack(side=tk.RIGHT, fill=tk.X)
     def pack_window(self, add_current):
-        '''packs the window.  if add_current=True, makes a special box for the
-        current table.'''
+        """packs the window.  if add_current=True, makes a special box for the
+        current table."""
         current, old = self.master.view_model.display()
         for text, tuples in old:
             do_it = tk.IntVar()
@@ -460,7 +460,7 @@ class HistoryChooser(object):
             btn.select()
             self.choices.append((do_it, current))
     def do_action(self):
-        '''makes a list of all chosen title/tuples and does the action on them'''
+        """makes a list of all chosen title/tuples and does the action on them"""
         chosen = []
         for do_it, to_act in self.choices:
             if do_it.get():
@@ -468,9 +468,9 @@ class HistoryChooser(object):
         self.action(chosen)
         self.window.destroy()
 class GraphMenu(object):
-    '''a view for changing dice.  contains a frame for display'''
+    """a view for changing dice.  contains a frame for display"""
     def __init__(self, master, view_model):
-        '''master is an object that has master.frame.'''
+        """master is an object that has master.frame."""
         self.master = master
         self.view_model = view_model
         menubar = tk.Menu(root)
@@ -497,7 +497,7 @@ class GraphMenu(object):
 
         about = tk.Menu(menubar, tearoff=0)
         def show_help():
-            '''opens a help window'''
+            """opens a help window"""
             help_window = tk.Toplevel()
             text = tk.Text(help_window, wrap=tk.WORD)
             text.insert(tk.END, HELP_TEXT)
@@ -512,31 +512,31 @@ class GraphMenu(object):
         self.pack_reloader()
 
     def pack_reloader(self):
-        '''populates the "Reload File" cascade'''
+        """populates the "Reload File" cascade"""
         self.reloader.delete(0, tk.END)
         for text, tuple_list in self.view_model.display()[1]:
             self.reloader.add_command(label=make_lines(text),
                                       command=partial(self.reload, text,
                                                       tuple_list))
     def reload(self, text, tuple_list):
-        '''reloads a table and calls update'''
+        """reloads a table and calls update"""
         self.view_model.reload_saved_dice_table(text, tuple_list)
         self.master.do_update()
     def save(self):
-        '''saves the current table in history'''
+        """saves the current table in history"""
         self.view_model.get_and_save_current()
         self.pack_reloader()
     def graph_current(self):
-        '''graphs the current table and saves to history'''
+        """graphs the current table and saves to history"""
         plots = [self.view_model.display()[0]]
         self.graph(plots)
     def graph_all(self):
-        '''graphs entire history'''
+        """graphs entire history"""
         current, old = self.view_model.display()
         old.append(current)
         self.graph(old)
     def open_grapher(self):
-        '''called by Select graphs.  makes a popup choice list'''
+        """called by Select graphs.  makes a popup choice list"""
         current, old = self.view_model.display()
         if current[0] or old:
             HistoryChooser(self, partial(self.graph), 'Graph\nSelected',
@@ -544,8 +544,8 @@ class GraphMenu(object):
         else:
             msgbox.showinfo('Empty', 'No graphs to select')
     def graph(self, plot_lst):
-        '''all graph functions call this base function to graph. plot_list is
-        a list of tuples (title, pts)'''
+        """all graph functions call this base function to graph. plot_list is
+        a list of tuples (title, pts)"""
         plots = self.view_model.get_requested_graphs(plot_lst)
         self.pack_reloader()
         if plots[2]:
@@ -565,18 +565,18 @@ class GraphMenu(object):
         else:
             msgbox.showinfo('No graphs', 'Your selection\ncontains no graphs')
     def clear_hist(self):
-        '''clears the history'''
+        """clears the history"""
         if self.view_model.display()[1]:
             if msgbox.askquestion('delete', 'Delete All?') == 'yes':
                 self.view_model.delete_all()
                 self.pack_reloader()
     def clear_selected(self, text_tuples_lst):
-        '''gets passed a list of (title, tuple_list).  clears those tables from
-        history'''
+        """gets passed a list of (title, tuple_list).  clears those tables from
+        history"""
         self.view_model.delete_requested(text_tuples_lst)
         self.pack_reloader()
     def edit_hist(self):
-        '''calls a popup to get a list for self.delete_requested'''
+        """calls a popup to get a list for self.delete_requested"""
         if self.view_model.display()[1]:
             HistoryChooser(self, partial(self.clear_selected),
                            'Clear\nSelected')
