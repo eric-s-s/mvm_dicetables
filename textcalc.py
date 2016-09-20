@@ -1,41 +1,70 @@
 """a module to calculate text expressions with +-*/"""
 from __future__ import division
 
-from operator import add, mul, truediv, sub, pos, neg, floordiv
+import operator as op
 import ast
 
 
-class TextEvaluator(object):
-    allowed_operations = {ast.Add: add, ast.Sub: sub, ast.Mult: mul,
-                          ast.FloorDiv: floordiv, ast.Div: truediv,
-                          ast.UAdd: pos, ast.USub: neg,
-                          ast.BitXor: pow, ast.Pow: pow}
+def is_num(number):
+    try:
+        return isinstance(number, (int, long, float))
+    except NameError:
+        return isinstance(number, (int, float))
+
+
+class TextCalculator(object):
+    allowed_operations = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
+                          ast.FloorDiv: op.floordiv, ast.Div: op.truediv,
+                          ast.UAdd: op.pos, ast.USub: op.neg,
+                          ast.BitXor: op.pow, ast.Pow: op.pow}
 
     exclusions = {'+': ast.Add, '-': ast.Sub, '*': ast.Mult, '/': ast.Div,
                   '//': ast.FloorDiv, '**': ast.Pow, '^': ast.BitXor}
 
     def __init__(self, exclusion_list=None):
+        """
+
+        :param exclusion_list: accepted elements\n
+            '+', '-', '*', '/', '//', '**', '^'
+        """
         self.excluded_funcs = []
         if exclusion_list is None:
             exclusion_list = []
         for operator in exclusion_list:
             self.excluded_funcs.append(self.exclusions[operator])
 
+        self._max_val = 1e+100
+        self._max_str_len = 50
+
+    @property
+    def max_val(self):
+        return self._max_val
+
+    @max_val.setter
+    def max_val(self, number):
+        if is_num(number):
+            self._max_val = number
+
+    @property
+    def max_str_len(self):
+        return self._max_str_len
+
+    @max_str_len.setter
+    def max_str_len(self, number):
+        if is_num(number):
+            self._max_str_len = number
+
     def check_excluded(self, node):
         if type(node.op) in self.excluded_funcs:
             raise KeyError(type(node.op))
 
-    @staticmethod
-    def check_length(equation):
-        max_len = 50
-        if len(equation) > max_len:
-            raise SyntaxError('line too long: max {}'.format(max_len))
+    def check_length(self, equation):
+        if len(equation) > self.max_str_len:
+            raise SyntaxError('line too long: max {}'.format(self.max_str_len))
 
-    @staticmethod
-    def check_answer(number):
-        max_val = 1.0e+100
-        if number > max_val:
-            raise ValueError('answer larger than max allowed: {}'.format(max_val))
+    def check_answer(self, number):
+        if number > self.max_val:
+            raise ValueError('answer is larger than max value: {}'.format(self.max_val))
 
     @staticmethod
     def _get_nodes(equation):
@@ -65,6 +94,8 @@ class TextEvaluator(object):
             raise SyntaxError('{} operation not allowed'.format(func_name))
 
     def safe_eval(self, expr):
+        if not expr:
+            return 0, 'None'
         try:
             self.check_length(expr)
             ans = self.eval_equation(expr)
@@ -76,6 +107,7 @@ class TextEvaluator(object):
 
 def get_func_name(error):
     func_name = get_ast_class_name(str(error))
+    # ast evals '^' to BitXor and TextCalculator evals '^' to Pow
     if func_name == "<BitXor>":
         func_name = "<Pow>"
     return func_name
@@ -87,17 +119,18 @@ def get_ast_class_name(type_str):
     return out
 
 
-def safe_eval(expr, *excluded):
+def safe_eval(expr, *excluded, **kwargs):
     """
 
     :param expr: str of math expr using numbers\n
         and + - * / () ^ ** //
     :param excluded: can be '+', '-', '*', '/',\n
         '//', '**', '^'
-    :return: (ans, 'ok') or (0, 'error message')
+    :param kwargs: max_val, max_str_len
+    :return: (ans, 'ok'), (0, 'None')\n
+        or (0, 'error message')
     """
-    doer = TextEvaluator(list(excluded))
+    doer = TextCalculator(list(excluded))
+    for key, value in kwargs.items():
+        setattr(doer, key, value)
     return doer.safe_eval(expr)
-
-
-

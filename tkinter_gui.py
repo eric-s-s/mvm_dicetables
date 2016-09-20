@@ -1,18 +1,20 @@
+
+import matplotlib.pyplot as plt
+from functools import partial
+from itertools import cycle
 from sys import version_info
+
+from michaellange import ToolTip
+import gui_model as mvm
+from textcalc import safe_eval
+
 if version_info[0] > 2:
     import tkinter as tk
     import tkinter.messagebox as msgbox
 else:
     import Tkinter as tk
     import tkMessageBox as msgbox
-from functools import partial
-from itertools import cycle
 
-
-import matplotlib.pyplot as plt
-
-from michaellange import ToolTip
-import gui_model as mvm
 
 HELP_TEXT = ('this is a platform for finding the probability of dice ' +
              'rolls for any set of dice. For example, the chance of ' +
@@ -65,8 +67,8 @@ def make_tool_tip_for_die(label, text, delay=300):
 
 
 class NumberInput(tk.Entry):
-    """a title entry that only allows digits and '+', '-', ' '. will calculate
-    basic arithmatic"""
+    """a text entry that only allows digits and '+', '-', ' '. will calculate
+    basic arithmetic"""
     def __init__(self, master, reset=True, *args, **kwargs):
         """exactly like entry, but reset decides if it will reset when mouse
         clicked"""
@@ -75,64 +77,28 @@ class NumberInput(tk.Entry):
         self.config(validate='key', validatecommand=vcmd)
         if reset:
             self.bind('<Button-1>', self.reset)
+
     def reset(self, event):
         """erases the entry on a mouse click inside box"""
         self.delete(0, tk.END)
+
     def validate(self, text):
         """checks to make sure each piece of the title is in acceptable list"""
         for element in text:
-            if element not in '1234567890+-* ':
+            if element not in '1234567890+-* ()':
                 self.bell()
                 return False
         return True
+
     def calculate(self):
-        """parses title to calculatefinal value"""
         text = self.get()
-        def parse_text(text):
-            """cuts title to list and removes spaces"""
-            elements = []
-            number_str = ''
-            for element in text:
-                if element in '0123456789':
-                    number_str += element
-                elif element in ['+', '-', '*']:
-                    if number_str:
-                        elements.append(number_str)
-                        number_str = ''
-                    elements.append(element)
-            if number_str:
-                elements.append(number_str)
-            return elements
-        def apply_signs(elements):
-            """calculates +/- and returns a list of ints and '*'."""
-            sign = 1
-            new = []
-            for string in elements:
-                if string.isdigit():
-                    new.append(int(string) * sign)
-                    sign = 1
-                elif string == '*':
-                    new.append(string)
-                elif string == '-':
-                    sign *= -1
-            return new
-        def add_multiply(lst):
-            """looks for '*' and then multiplies first and returns sum or 0"""
-            front = []
-            back = lst[:]
-            while back:
-                element = back.pop(0)
-                if element == '*':
-                    try:
-                        first = front.pop()
-                        front.append(first * back.pop(0))
-                    except IndexError:
-                        return 0
-                else:
-                    front.append(element)
-            return sum(front)
-        return add_multiply(apply_signs(parse_text(text)))
-#######  AddBox  and widget########
+        self.delete(0, tk.END)
+        ans = int(safe_eval(text, '**', '^', '//', '/')[0])
+        self.insert(tk.END, str(ans))
+        return ans
+
+
+#  AddBox  and widget########
 class WeightPopup(object):
     """a popup that records weights for a weighted die"""
     def __init__(self, master, text_list):
@@ -141,6 +107,7 @@ class WeightPopup(object):
         self.master = master
         self.window = tk.Toplevel()
         self.add_weights(text_list)
+
     def add_weights(self, text_list):
         """the function that populate the toplevel"""
         max_cols = 12
@@ -154,8 +121,9 @@ class WeightPopup(object):
         enter_weights = tk.Button(self.window, command=self.record_weights,
                                   text='RECORD\nWEIGHTS',
                                   bg='pale turquoise', fg='red')
-        col, row = divmod(len(text_list), max_cols)
-        enter_weights.grid(column=col, row=row)
+        col_num, row_num = divmod(len(text_list), max_cols)
+        enter_weights.grid(column=col_num, row=row_num)
+
     def record_weights(self):
         """records weights as tuples (title, weight_val) and passes to parent's
         record_weights()"""
@@ -165,6 +133,8 @@ class WeightPopup(object):
                 out.append((widget.cget('label'), widget.get()))
         self.master.record_weights(out)
         self.window.destroy()
+
+
 class AddBox(object):
     """a view for adding dice.  contains a frame for display"""
     def __init__(self, master):

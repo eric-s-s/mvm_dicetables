@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 
 from decimal import Decimal
-from operator import add, mul, floordiv, sub
 
 try:
     from itertools import izip_longest as zip_longest
@@ -613,15 +612,3 @@ class InfoBox(object):
         """
         return [self._table.get_range_stats_text(), self._table.title,
                 self._format_text_or_pass('weights_info'), self._format_text_or_pass('full_text')]
-
-
-
-
-
-
-
-
-
-
-
-
