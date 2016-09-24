@@ -68,6 +68,19 @@ class TestTextCalc(unittest.TestCase):
     def test_TextCalculator_check_excluded_fail(self):
         self.my_regex(KeyError, "<class '_ast.Sub'>", self.TC_no_minus.check_excluded, node('1-2'))
 
+    def test_TextCalculator_all_exclusions_present(self):
+        expected = {'+', '-', '*', '/', '//', '**', '^', '%'}
+        exclusion_keys = set(self.TC.exclusions.keys())
+        self.assertEqual(expected, exclusion_keys)
+
+    def test_TextCalculator_check_excluded_all_exclusions_work(self):
+        operators = ['+', '-', '*', '/', '//', '**', '^', '%']
+        funcs = ['Add', 'Sub', 'Mult', 'Div', 'FloorDiv', 'Pow', 'BitXor', 'Mod']
+        errors = ["<class '_ast.{}'>".format(func) for func in funcs]
+        for index, op in enumerate(operators):
+            to_test = tc.TextCalculator([op])
+            self.my_regex(KeyError, errors[index], to_test.check_excluded, node('1{}1'.format(op)))
+
     def test_TextCalculator_check_length_pass(self):
         self.assertIsNone(self.TC.check_length('1+2'))
 
@@ -110,7 +123,7 @@ class TestTextCalc(unittest.TestCase):
         self.assertEqual(self.TC._node_eval(node('1+1')), 2)
 
     def test_TextCalculator__node_eval_binary_fail(self):
-        self.my_regex(KeyError, "<class '_ast.Mod'>", self.TC._node_eval, node('1% 1'))
+        self.my_regex(KeyError, "<class '_ast.BitAnd'>", self.TC._node_eval, node('1& 1'))
 
     def test_TextCalculator__node_eval_binary_fail_by_excluded(self):
         self.my_regex(KeyError, "<class '_ast.Sub'>", self.TC_no_minus._node_eval, node('1- 1'))
@@ -170,6 +183,9 @@ class TestTextCalc(unittest.TestCase):
 
     def test_safe_eval_floor_div(self):
         self.check_safe_eval('13//4', 3, 'ok')
+
+    def test_safe_eval_mod(self):
+        self.check_safe_eval('7 % 2', 1, 'ok')
 
     def test_safe_eval_paren(self):
         self.check_safe_eval('(1 + 2) * 2', 6, 'ok')

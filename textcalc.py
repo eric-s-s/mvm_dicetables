@@ -15,11 +15,11 @@ def is_num(number):
 class TextCalculator(object):
     allowed_operations = {ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul,
                           ast.FloorDiv: op.floordiv, ast.Div: op.truediv,
-                          ast.UAdd: op.pos, ast.USub: op.neg,
+                          ast.Mod: op.mod, ast.UAdd: op.pos, ast.USub: op.neg,
                           ast.BitXor: op.pow, ast.Pow: op.pow}
 
     exclusions = {'+': ast.Add, '-': ast.Sub, '*': ast.Mult, '/': ast.Div,
-                  '//': ast.FloorDiv, '**': ast.Pow, '^': ast.BitXor}
+                  '//': ast.FloorDiv, '**': ast.Pow, '^': ast.BitXor, '%': ast.Mod}
 
     def __init__(self, exclusion_list=None):
         """
@@ -123,14 +123,14 @@ def safe_eval(expr, *excluded, **kwargs):
     """
 
     :param expr: str of math expr using numbers\n
-        and + - * / () ^ ** //
+        and + - * / () ^ ** // %
     :param excluded: can be '+', '-', '*', '/',\n
-        '//', '**', '^'
+        '//', '**', '^', '%'
     :param kwargs: max_val, max_str_len
     :return: (ans, 'ok'), (0, 'None')\n
         or (0, 'error message')
     """
-    doer = TextCalculator(list(excluded))
+    calculator = TextCalculator(list(excluded))
     for key, value in kwargs.items():
-        setattr(doer, key, value)
-    return doer.safe_eval(expr)
+        setattr(calculator, key, value)
+    return calculator.safe_eval(expr)

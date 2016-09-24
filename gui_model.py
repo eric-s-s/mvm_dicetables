@@ -59,27 +59,27 @@ class DiceTableManager(object):
     def tuple_list(self):
         return self._table.frequency_all()
 
-    def get_range_stats_text(self):
+    def get_description_range_mean_stddev(self):
         info_text = (
             'the range of numbers is {:,}-{:,}\n'.format(*self.range) +
             'the mean is {:,}\nthe stddev is {}'.format(round(self.mean, 4), self.stddev)
         )
         return info_text
 
-    def get_stats(self, stat_list):
+    def get_stats(self, input_list):
         """
 
-        :param stat_list: list on ints
-        :return: list of strings
-            ['input list as string', 'total combinations',
-            '# of combinations in input', '1 in how many chance',
-            'pct chance']
+        :param input_list: list of ints
+        :return: tuple of strings
+            [input_list str, total combinations,
+            input combinations, inverse chance,
+            pct chance]
         """
-        stat_info = list(dt.stats(self._table, stat_list))
-        if stat_info[3] != 'infinity' and stat_info[4] == '0.0':
-            tiny_percent = Decimal('1.0e+2') / Decimal(stat_info[3])
-            stat_info[4] = '{:.3e}'.format(tiny_percent)
-        return tuple(stat_info)
+        the_list, total, combinations, inv_chance, pct = dt.stats(self._table, input_list)
+        if pct == '0.0' and inv_chance != 'infinity':
+            tiny_pct = Decimal('1.0e+2') / Decimal(inv_chance)
+            pct = '{:.3e}'.format(tiny_pct)
+        return the_list, total, combinations, inv_chance, pct
 
     def get_obj_to_save(self):
         title = self.title_one_line
@@ -307,10 +307,10 @@ class GraphBox(object):
 
 def get_die_roll_details(die):
     details = '{} rolls:'.format(die)
-    sting_length_for_rolls = [len(str(pair[0])) for pair in die.tuple_list()]
-    rjust_roll_string = max(sting_length_for_rolls)
-    for roll, freq in die.tuple_list():
-        details += '\n  {:>{}} with frequency: {}'.format(roll, rjust_roll_string, freq)
+    len_for_roll_value_strings = [len(str(pair[0])) for pair in die.tuple_list()]
+    rjust_value = max(len_for_roll_value_strings)
+    for roll_value, freq in die.tuple_list():
+        details += '\n  {:>{}} with frequency: {}'.format(roll_value, rjust_value, freq)
     return details
 
 
@@ -364,7 +364,7 @@ class ChangeBox(object):
         """
         display = []
         for die, number in self._table.dice_list:
-            add_rm_display = get_add_and_remove_labels(die, number, True)
+            add_rm_display = get_add_and_remove_labels(die, number, enable_remove=True)
             display.append((add_rm_display, die))
         return display
 
@@ -414,6 +414,8 @@ def is_dictionary_for_weighted_die(dictionary):
 
 class AddBox(object):
     """selects and adds new dice to a table"""
+    presets = ['D{}'.format(die) for die in
+               (2, 4, 6, 8, 10, 12, 20, 100)]
 
     def __init__(self, dice_table_manager):
         """self.presets is a list of
@@ -424,8 +426,6 @@ class AddBox(object):
         self._multiplier = 0
         self._dictionary = {}
         self._die = dt.Die(6)
-        self.presets = ['D{}'.format(die) for die in
-                        (2, 4, 6, 8, 10, 12, 20, 100)]
 
     def get_die_details(self):
         return get_die_roll_details(self._die)
@@ -477,7 +477,7 @@ class AddBox(object):
 
         :param text_val_lst:
             [('weight for {}.'.format(roll),\n
-            type:int - weight for roll) ..]
+            val=int - weight for roll) ..]
         """
         self._dictionary = {}
         for text, weight in text_val_lst:
@@ -497,13 +497,13 @@ class StatBox(object):
         """
 
 
-        :return: [ info text: range+stddev,\n
+        :return: [ info text: range, mean, stddev,\n
             stat text: \n
             values: tuple of what values are displayed\n
             min_max: tuple of min and max for slider
         """
         val_min, val_max = self._table.range
-        info_text = self._table.get_range_stats_text()
+        info_text = self._table.get_description_range_mean_stddev()
         stat_text, values = self.display_stats(val_1, val_2)
         return [info_text, stat_text, values, (val_min, val_max)]
 
@@ -548,7 +548,7 @@ class InfoBox(object):
                          'full_text': self._table.full_text}
         return text_selector[key].rstrip('\n')
 
-    def _format_text_or_pass(self, key):
+    def _get_formatted_text(self, key):
         """
         :param key: 'weights_info' or 'full_text'
         """
@@ -567,7 +567,7 @@ class InfoBox(object):
         :return: list of pages
         """
         self._lines_per_page[key] = lines_per_page
-        text = self._format_text_or_pass(key)
+        text = self._get_formatted_text(key)
         lines = text.split('\n')
         grouping_into_pages_tool = [iter(lines)] * lines_per_page
         grouped_lines = zip_longest(*grouping_into_pages_tool, fillvalue=' ')
@@ -599,16 +599,16 @@ class InfoBox(object):
 
     def display_paged(self, lines_per_weight_page, lines_per_full_text_page):
         """
-        :return: [general_info, table_str, (weights_info), (full_text)]"""
+        :return: [range-mean-stddev-str, table_str, (weights_info), (full_text)]"""
         self.make_pages('weights_info', lines_per_weight_page)
         self.make_pages('full_text', lines_per_full_text_page)
-        return [self._table.get_range_stats_text(), self._table.title,
+        return [self._table.get_description_range_mean_stddev(), self._table.title,
                 self.display_current_page('weights_info'),
                 self.display_current_page('full_text')]
 
     def display(self):
         """
-        :return: [general info, table title, weights_info, full_text]
+        :return: [range-mean-stddev-str, table title, weights_info, full_text]
         """
-        return [self._table.get_range_stats_text(), self._table.title,
-                self._format_text_or_pass('weights_info'), self._format_text_or_pass('full_text')]
+        return [self._table.get_description_range_mean_stddev(), self._table.title,
+                self._get_formatted_text('weights_info'), self._get_formatted_text('full_text')]

@@ -72,15 +72,15 @@ class TestMVM(unittest.TestCase):
         self.DTM.request_add(1, dt.Die(2))
         self.assertEqual(self.DTM.tuple_list, [(1, 1), (2, 1)])
 
-    def test_DiceTableManager_get_range_stats_text(self):
+    def test_DiceTableManager_get_description_range_mean_stddev(self):
         self.DTM.request_add(1, dt.Die(2))
-        self.assertEqual(self.DTM.get_range_stats_text(),
+        self.assertEqual(self.DTM.get_description_range_mean_stddev(),
                          ('the range of numbers is 1-2\n' +
                           'the mean is 1.5\nthe stddev is 0.5'))
 
-    def test_DiceTableManager_get_range_stats_text_formatting(self):
+    def test_DiceTableManager_get_description_range_mean_stddev_formatting(self):
         self.DTM.request_add(1, dt.WeightedDie({1000: 1, 3000: 2}))
-        self.assertEqual(self.DTM.get_range_stats_text(),
+        self.assertEqual(self.DTM.get_description_range_mean_stddev(),
                          ('the range of numbers is 1,000-3,000\n' +
                           'the mean is 2,333.3333\nthe stddev is 942.809'))
 
@@ -787,13 +787,13 @@ class TestMVM(unittest.TestCase):
         self.DTM.request_add(1, dt.Die(2))
         self.assertEqual(self.IB._get_text('weights_info'), '1D2\n    No weights')
 
-    def test_InfoBox__format_text_or_pass_with_full_text(self):
+    def test_InfoBox__get_formatted_text_with_full_text(self):
         self.DTM.request_add(1, dt.Die(2))
-        self.assertEqual(self.IB._format_text_or_pass('full_text'), '1: 1\n2: 1')
+        self.assertEqual(self.IB._get_formatted_text('full_text'), '1: 1\n2: 1')
 
-    def test_InfoBox__format_text_or_pass_with_weights_info(self):
+    def test_InfoBox__get_formatted_text_with_weights_info(self):
         self.DTM.request_add(1, dt.WeightedDie({1: 2}))
-        self.assertEqual(self.IB._format_text_or_pass('weights_info'), '1D1  W:2\n    1 has weight: 2')
+        self.assertEqual(self.IB._get_formatted_text('weights_info'), '1D1  W:2\n    1 has weight: 2')
 
     def test_InfoBox_make_pages_empty_table_with_full_text(self):
         self.IB.make_pages('full_text', 2)

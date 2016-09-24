@@ -93,7 +93,7 @@ class NumberInput(tk.Entry):
     def calculate(self):
         text = self.get()
         self.delete(0, tk.END)
-        ans = int(safe_eval(text, '**', '^', '//', '/')[0])
+        ans = int(safe_eval(text, '**', '^', '//', '/', '%')[0])
         self.insert(tk.END, str(ans))
         return ans
 
@@ -338,23 +338,23 @@ class StatBox(object):
         left.grid(row=1, column=0)
         ToolTip(left, help_text, 250)
         left_var = tk.IntVar()
-        left_input = NumberInput(self.frame, width=10, bg='light yellow')
+        left_input = NumberInput(self.frame, width=10, bg='light yellow', reset=False)
         left_input.grid(row=2, column=0)
 
         right = tk.Label(self.frame, text='input\nright value')
         right.grid(row=3, column=0)
         ToolTip(right, help_text, 250)
         right_var = tk.IntVar()
-        right_input = NumberInput(self.frame, width=10, bg='ivory')
+        right_input = NumberInput(self.frame, width=10, bg='ivory', reset=False)
         right_input.grid(row=4, column=0)
-        def set_reset(int_var, event):
+
+        def get_numbuer_input_value(int_var, event):
             """gets the int from a NumberInput from the event
             and assigns to IntVar. resets NumberInput"""
             int_var.set(event.widget.calculate())
-            event.widget.reset(event)
             self.assign_slider_value()
-        left_input.bind('<Return>', partial(set_reset, left_var))
-        right_input.bind('<Return>', partial(set_reset, right_var))
+        left_input.bind('<Return>', partial(get_numbuer_input_value, left_var))
+        right_input.bind('<Return>', partial(get_numbuer_input_value, right_var))
 
         self.left = tk.Scale(self.frame, from_=1, to=0, variable=left_var,
                              command=lambda val: self.assign_slider_value(),
