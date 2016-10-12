@@ -94,6 +94,11 @@ class TextCalculator(object):
             raise SyntaxError('{} operation not allowed'.format(func_name))
 
     def safe_eval(self, expr):
+        """
+
+        :param expr: string
+        :return: (number, error message)
+        """
         if not expr:
             return 0, 'None'
         try:

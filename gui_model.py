@@ -11,6 +11,7 @@ except ImportError:
 import dicetables as dt
 import numpy as np
 import filehandler as fh
+from textcalc import TextCalculator
 
 
 class DiceTableManager(object):
@@ -612,3 +613,37 @@ class InfoBox(object):
         """
         return [self._table.get_description_range_mean_stddev(), self._table.title,
                 self._get_formatted_text('weights_info'), self._get_formatted_text('full_text')]
+
+
+class VirtualCalculator(object):
+    def __init__(self, mean, stddev):
+        self._specials_map = {'mean': '{:.1f}'.format(mean),
+                              'stddev': '{:.1f}'.format(stddev)}
+        self._back_space = '<BS'
+        self._digits = '1234567890'
+        self._operators = '+-*'
+        excluded_operators = ['/', '//', '**', '^', '%']
+        self._calculator = TextCalculator(excluded_operators)
+        self._display = ''
+
+    def reset(self):
+        self._display = ''
+
+    def calculate(self):
+        return int(self._calculator.safe_eval(self._display)[0])
+
+    def push(self, button_value):
+        if button_value in self._digits:
+            pass
+        if button_value in self._operators:
+            pass
+        if button_value == '<BS':
+            pass
+        if button_value in self._specials_map.keys():
+            pass
+
+    def do_back_space(self):
+        pass
+
+
+

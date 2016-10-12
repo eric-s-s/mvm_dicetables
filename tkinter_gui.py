@@ -6,7 +6,7 @@ from sys import version_info
 
 from michaellange import ToolTip
 import gui_model as mvm
-from textcalc import safe_eval
+from textcalc import TextCalculator
 
 if version_info[0] > 2:
     import tkinter as tk
@@ -78,6 +78,8 @@ class NumberInput(tk.Entry):
         if reset:
             self.bind('<Button-1>', self.reset)
 
+        self.calculator = TextCalculator(['**', '^', '//', '/', '%'])
+
     def reset(self, event):
         """erases the entry on a mouse click inside box"""
         self.delete(0, tk.END)
@@ -93,7 +95,7 @@ class NumberInput(tk.Entry):
     def calculate(self):
         text = self.get()
         self.delete(0, tk.END)
-        ans = int(safe_eval(text, '**', '^', '//', '/', '%')[0])
+        ans = int(self.calculator.safe_eval(text)[0])
         self.insert(tk.END, str(ans))
         return ans
 
