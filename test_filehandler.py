@@ -4,6 +4,8 @@ from __future__ import absolute_import
 
 import os
 import unittest
+from sys import version_info
+
 import dicetables as dt
 import numpy as np
 
@@ -19,6 +21,13 @@ def create_saved_dice_table(table):
 
 
 class TestFileHandler(unittest.TestCase):
+
+    def setUp(self):
+        self.verifier = fh.TypesVerifier()
+
+    def tearDown(self):
+        del self.verifier
+
     def assertArrayEqual(self, np_array_1, np_array_2):
         self.assertTrue((np_array_1.tolist() == np_array_2.tolist() and
                          np_array_1.dtype == np_array_2.dtype))
@@ -161,6 +170,15 @@ class TestFileHandler(unittest.TestCase):
         data_obj = create_saved_dice_table(dt.DiceTable())
         data_obj._graph_axes = 'a'
         self.assertEqual(data_obj.verify_all_types(), 'error: invalid graph values')
+
+    # def test_TypesVerifier_process_data_type_not_int(self):
+    #     self.assertEqual(self.verifier.process_data_type(str), str)
+    #
+    # def test_TypesVerifier_process_data_type_int(self):
+    #     if version_info[0] < 3:
+    #         self.assertEqual(self.verifier.process_data_type(int), (int, long))
+    #     else:
+    #         self.assertEqual(self.verifier.process_data_type(int), int)
 
     def test_add_long_to_data_type_for_python_2_no_int(self):
         self.assertEqual((float, str), fh.add_long_to_data_type_for_python_2((float, str)))

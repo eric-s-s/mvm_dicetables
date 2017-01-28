@@ -14,6 +14,9 @@ import filehandler as fh
 from textcalc import TextCalculator
 
 
+# TODO remove object and lists passed to gui_model and replace with indices maybe another level of abstraction
+# TODO most labels are (name, tuple_list).  can be reduced to (name, index) and minimize info to pass?
+
 class DiceTableManager(object):
     """easy management of a DiceTable
 

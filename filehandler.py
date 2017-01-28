@@ -83,6 +83,42 @@ class SavedDiceTable(object):
             return msg
 
 
+class TypesVerifier(object):
+
+    def is_int(self, value):
+        if version_info[0] < 3:
+            return isinstance(value, (int, long))
+        else:
+            return isinstance(value, int)
+
+    def check_instance(self, value, data_type):
+        if data_type == int:
+            return self.is_int(value)
+        return isinstance(value, data_type)
+
+    def verify_datum(self, datum, data_type, error_msg):
+        if not self.check_instance(datum, data_type):
+            return error_msg
+        return 'ok'
+
+    def verify_list_or_tuple(self, list_or_tuple, data_type, error_msg):
+        if not is_list_or_tuple(list_or_tuple):
+            return error_msg
+        if any(not self.check_instance(element, data_type) for element in list_or_tuple):
+            return error_msg
+        return 'ok'
+
+    def verify_tuples_in_list_for_single_types(self, tuple_list, type_of_each_tuple, error_msg):
+        if not is_list_or_tuple(tuple_list):
+            return error_msg
+        if len(tuple_list) != len(type_of_each_tuple):
+            return error_msg
+        for index, element in enumerate(tuple_list):
+            if self.verify_list_or_tuple(element, type_of_each_tuple[index], 'error') == 'error':
+                return error_msg
+        return 'ok'
+
+
 def add_long_to_data_type_for_python_2(data_type_tuple):
     if version_info[0] < 3 and int in data_type_tuple:
         return data_type_tuple + (long,)
